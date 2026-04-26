@@ -13,55 +13,53 @@ struct AboutView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 14) {
+            VStack(spacing: 8) {
                 identityCard
                 updatesCard
                 linksCard
+                quitRow
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 12)
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var quitRow: some View {
+        HStack {
+            Spacer()
+            Button("Quit DotZap") {
+                NSApp.terminate(nil)
+            }
+            .buttonStyle(GlassButtonStyle())
+            .keyboardShortcut("q", modifiers: .command)
+            Spacer()
         }
     }
 
     // MARK: - Cards
 
     private var identityCard: some View {
-        VStack(spacing: 8) {
+        HStack(spacing: 12) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .interpolation(.high)
-                .frame(width: 64, height: 64)
+                .frame(width: 44, height: 44)
 
-            Text("DotZap")
-                .font(.system(size: 17, weight: .semibold))
-
-            Text(versionString)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-
-            Text("Silently deletes Apple metadata junk on every mounted volume.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 8)
-                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("DotZap")
+                    .font(.system(size: 17, weight: .semibold))
+                Text(versionString)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
-        .padding(14)
+        .padding(10)
         .background(card)
     }
 
     private var updatesCard: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                Text("Updates")
-                    .font(.system(size: 12, weight: .semibold))
-                Spacer()
-            }
-
+        VStack(spacing: 8) {
             HStack {
                 Text("Automatically check for updates")
                     .font(.system(size: 11))
@@ -81,22 +79,19 @@ struct AboutView: View {
                 .disabled(!updater.canCheckForUpdates)
             }
         }
-        .padding(12)
+        .padding(10)
         .background(card)
     }
 
     private var linksCard: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             linkRow(label: "Releases", systemImage: "shippingbox",
                     url: "https://github.com/Foiler25/DotZap/releases")
             Divider().overlay(Color.white.opacity(0.08))
             linkRow(label: "Source on GitHub", systemImage: "chevron.left.forwardslash.chevron.right",
                     url: "https://github.com/Foiler25/DotZap")
-            Divider().overlay(Color.white.opacity(0.08))
-            linkRow(label: "Sparkle (auto-update framework)", systemImage: "sparkles",
-                    url: "https://sparkle-project.org")
         }
-        .padding(10)
+        .padding(8)
         .background(card)
     }
 
@@ -119,7 +114,7 @@ struct AboutView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
     private var card: some View {
