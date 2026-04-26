@@ -17,6 +17,10 @@ Apple/Windows metadata junk (`._*`, `.DS_Store`, `.Spotlight-V100`, `Thumbs.db`,
 
 > **macOS 14 (Sonoma) or later** is required — the project deployment target is 14.0.
 
+Because DotZap is licensed under GPLv3 (see [LICENSE](LICENSE)), you're free to modify
+and redistribute your own builds — as long as the source for those builds is made
+available under the same license.
+
 ## Granting Full Disk Access
 
 DotZap needs Full Disk Access to read every mounted volume.
@@ -153,5 +157,4 @@ existing installs.
 
 ## License
 
-Personal / non-commercial use. No telemetry. Sparkle is the only third-party
-dependency (BSD-style license, MIT-compatible).
+DotZap is licensed under the [GNU General Public License v3.0](LICENSE).

@@ -29,7 +29,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026. All rights reserved.</string>
+	<string>Copyright (C) 2026 Brandon Villar</string>
 	<key>NSRemovableVolumesUsageDescription</key>
 	<string>DotZap watches removable volumes to silently delete Apple metadata files (._*, .DS_Store, etc.) the moment they are created.</string>
 </dict>
