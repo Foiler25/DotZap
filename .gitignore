@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+DotZap-*.dmg
+
+# Release tooling (local handoff files)
+RELEASE_NOTES.md
+.release-metadata
+.release-notes-draft.md
+
+# Sparkle private key (NEVER commit)
+keyfile.txt
+
+# macOS / Xcode noise
+.DS_Store
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.xcuserstate

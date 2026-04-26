@@ -29,6 +29,9 @@
 		FB0000000000000000000021 /* DiskArbitration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000021 /* DiskArbitration.framework */; };
 		FB0000000000000000000022 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000022 /* CoreServices.framework */; };
 		FB0000000000000000000023 /* ServiceManagement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000023 /* ServiceManagement.framework */; };
+		FB0000000000000000000031 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = FA0000000000000000000042 /* Sparkle */; };
+		FB0000000000000000000051 /* UpdaterModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000051 /* UpdaterModel.swift */; };
+		FB0000000000000000000052 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000052 /* AboutView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +53,8 @@
 		FA0000000000000000000016 /* FullDiskAccessBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessBanner.swift; sourceTree = "<group>"; };
 		FA0000000000000000000017 /* GlassButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButtonStyle.swift; sourceTree = "<group>"; };
 		FA0000000000000000000018 /* LoginItemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemManager.swift; sourceTree = "<group>"; };
+		FA0000000000000000000051 /* UpdaterModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterModel.swift; sourceTree = "<group>"; };
+		FA0000000000000000000052 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		FA0000000000000000000019 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FA000000000000000000001A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FA000000000000000000001B /* DotZap.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DotZap.entitlements; sourceTree = "<group>"; };
@@ -67,6 +72,7 @@
 				FB0000000000000000000021 /* DiskArbitration.framework in Frameworks */,
 				FB0000000000000000000022 /* CoreServices.framework in Frameworks */,
 				FB0000000000000000000023 /* ServiceManagement.framework in Frameworks */,
+				FB0000000000000000000031 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -130,6 +136,7 @@
 				FA0000000000000000000015 /* ActivityView.swift */,
 				FA0000000000000000000016 /* FullDiskAccessBanner.swift */,
 				FA0000000000000000000017 /* GlassButtonStyle.swift */,
+				FA0000000000000000000052 /* AboutView.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -138,6 +145,7 @@
 			isa = PBXGroup;
 			children = (
 				FA0000000000000000000018 /* LoginItemManager.swift */,
+				FA0000000000000000000051 /* UpdaterModel.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -176,6 +184,9 @@
 			dependencies = (
 			);
 			name = DotZap;
+			packageProductDependencies = (
+				FA0000000000000000000042 /* Sparkle */,
+			);
 			productName = DotZap;
 			productReference = FA0000000000000000000031 /* DotZap.app */;
 			productType = "com.apple.product-type.application";
@@ -204,6 +215,9 @@
 				Base,
 			);
 			mainGroup = ED0000000000000000000001;
+			packageReferences = (
+				FA0000000000000000000041 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			productRefGroup = ED0000000000000000000008 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -247,6 +261,8 @@
 				FB0000000000000000000016 /* FullDiskAccessBanner.swift in Sources */,
 				FB0000000000000000000017 /* GlassButtonStyle.swift in Sources */,
 				FB0000000000000000000018 /* LoginItemManager.swift in Sources */,
+				FB0000000000000000000051 /* UpdaterModel.swift in Sources */,
+				FB0000000000000000000052 /* AboutView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -455,6 +471,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		FA0000000000000000000041 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FA0000000000000000000042 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FA0000000000000000000041 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BB0000000000000000000001 /* Project object */;
 }

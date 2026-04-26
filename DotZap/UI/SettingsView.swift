@@ -8,6 +8,7 @@ struct SettingsView: View {
         case volumes  = "Volumes"
         case rules    = "Rules"
         case activity = "Activity"
+        case about    = "About"
         var id: String { rawValue }
     }
 
@@ -24,6 +25,7 @@ struct SettingsView: View {
                 case .volumes:  VolumeListView()
                 case .rules:    RuleListView()
                 case .activity: ActivityView()
+                case .about:    AboutView()
                 }
             }
             .animation(.easeInOut(duration: 0.15), value: tab)

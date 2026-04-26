@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Sparkle
 
 @main
 struct DotZapApp: App {
@@ -11,10 +12,17 @@ struct DotZapApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    lazy var updaterController: SPUStandardUpdaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
         AppState.shared.loadPersisted()
+        UpdaterModel.shared.attach(updaterController.updater)
         StatusBarController.shared.setup()
         VolumeWatcher.shared.start()
         AppState.shared.startWatchingIfEnabled()

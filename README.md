@@ -83,6 +83,75 @@ DotZap/
     └── LoginItemManager.swift  SMAppService.mainApp wrapper
 ```
 
+## Auto-updates
+
+DotZap auto-updates via [Sparkle](https://sparkle-project.org). Once an update is
+published, you get a non-blocking prompt within 24 hours.
+
+- **Manual check** — right-click the menu bar icon → **About** tab → **Check for
+  Updates…**. Skips the daily timer.
+- **Disable auto-checks** — toggle off **Automatically check for updates** in the
+  same tab. Manual checks still work.
+- **Verifying integrity** — every update is EdDSA-signed. The public key is
+  embedded in the app at build time; updates that don't verify are rejected.
+- **Browse releases** — [github.com/Foiler25/DotZap/releases](https://github.com/Foiler25/DotZap/releases).
+
+## Release process (maintainers)
+
+Each release: bump version → build DMG → write notes → publish.
+
+```bash
+# 1. Bump the version in DotZap.xcodeproj/project.pbxproj.
+#    Edit MARKETING_VERSION in BOTH the Debug and Release target configs.
+#    Use semver (e.g. 1.0.0 → 1.0.1).
+
+# 2. Build the signed DMG. Writes .release-metadata as the handoff file.
+./build-dmg.sh
+
+# 3. Smoke-test the DMG (drag-install, launch, About tab shows new version).
+
+# 4. Generate the release notes draft. Writes .release-notes-draft.md.
+./release-github.sh
+
+# 5. Have Claude turn the draft into RELEASE_NOTES.md (user-facing prose
+#    grouped under New / Fixed / Changed; commits since the previous tag).
+
+# 6. Publish: tags v$VERSION, pushes, creates the GitHub Release with the
+#    DMG attached, appends an <item> to appcast.xml, commits + pushes.
+./release-github.sh --publish
+```
+
+The two scripts pass state via `.release-metadata` (build commit, SHA-256, DMG
+size, Sparkle signature line). That file is gitignored and removed by Phase 2 on
+success.
+
+## One-time setup (per maintainer machine)
+
+```bash
+# Required CLI tools
+brew install create-dmg gh
+gh auth login                                    # one-time GitHub auth
+
+# Sparkle EdDSA keys
+# The private key for DotZap lives in the macOS Keychain under the
+# 'dotzap' account. To move to a new machine, copy keyfile.txt into the
+# repo root (gitignored) — build-dmg.sh prefers it over the keychain.
+# To regenerate keys from scratch (only do this if you've lost the
+# existing key — it'll invalidate every published release for old users):
+xcodebuild -project DotZap.xcodeproj -scheme DotZap -resolvePackageDependencies
+GENERATE_KEYS="$(ls -1 ~/Library/Developer/Xcode/DerivedData/DotZap-*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys | head -1)"
+"$GENERATE_KEYS" --account dotzap                # generates new keypair
+"$GENERATE_KEYS" --account dotzap -x keyfile.txt # exports private key locally
+"$GENERATE_KEYS" --account dotzap -p             # prints public key
+```
+
+After regenerating, paste the printed public key into `build-dmg.sh`
+(`SPARKLE_PUBLIC_EDKEY=`) and rebuild. **Keep `keyfile.txt` offline** — back it up
+to a password manager. Losing it means losing the ability to ship signed updates
+with the existing keypair; leaking it means an attacker can forge updates for
+existing installs.
+
 ## License
 
-Personal / non-commercial use. No telemetry, no updater, no third-party dependencies.
+Personal / non-commercial use. No telemetry. Sparkle is the only third-party
+dependency (BSD-style license, MIT-compatible).
