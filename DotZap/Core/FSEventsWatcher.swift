@@ -1,0 +1,163 @@
+import Foundation
+import CoreServices
+
+final class FSEventsWatcher {
+    let mountPath: String
+    private var stream: FSEventStreamRef?
+    private let queue: DispatchQueue
+    private var isStarted = false
+
+    init(mountPath: String) {
+        self.mountPath = mountPath
+        let safeLabel = mountPath
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: " ", with: "_")
+        self.queue = DispatchQueue(label: "com.dotzap.fsevents\(safeLabel)", qos: .utility)
+    }
+
+    deinit {
+        if let stream {
+            FSEventStreamStop(stream)
+            FSEventStreamInvalidate(stream)
+            FSEventStreamRelease(stream)
+        }
+    }
+
+    func start() {
+        guard !isStarted else { return }
+
+        var context = FSEventStreamContext(
+            version: 0,
+            info: Unmanaged.passUnretained(self).toOpaque(),
+            retain: nil,
+            release: nil,
+            copyDescription: nil
+        )
+
+        let pathsToWatch = [mountPath] as CFArray
+        let flags = FSEventStreamCreateFlags(
+            kFSEventStreamCreateFlagFileEvents |
+            kFSEventStreamCreateFlagUseCFTypes |
+            kFSEventStreamCreateFlagNoDefer
+        )
+
+        guard let newStream = FSEventStreamCreate(
+            kCFAllocatorDefault,
+            Self.eventCallback,
+            &context,
+            pathsToWatch,
+            FSEventsGetCurrentEventId(),
+            0.25,
+            flags
+        ) else { return }
+
+        FSEventStreamSetDispatchQueue(newStream, queue)
+        FSEventStreamStart(newStream)
+
+        stream = newStream
+        isStarted = true
+    }
+
+    func stop() {
+        guard isStarted, let stream else { return }
+        FSEventStreamStop(stream)
+        FSEventStreamInvalidate(stream)
+        FSEventStreamRelease(stream)
+        self.stream = nil
+        isStarted = false
+    }
+
+    func cleanNow() {
+        let mountPath = self.mountPath
+        Task { @MainActor in
+            let state = AppState.shared
+            guard let volume = state.volumes.first(where: { $0.mountPath == mountPath }) else { return }
+            let rules = state.rules
+
+            let events = await Task.detached(priority: .userInitiated) {
+                Self.scan(mountPath: mountPath, rules: rules, volume: volume)
+            }.value
+
+            for event in events {
+                state.record(event)
+            }
+            if !events.isEmpty {
+                state.flashStatusIcon()
+            }
+        }
+    }
+
+    private static func scan(mountPath: String, rules: [CleanRule], volume: Volume) -> [DeletionEvent] {
+        var events: [DeletionEvent] = []
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(atPath: mountPath) else { return events }
+
+        while let relPath = enumerator.nextObject() as? String {
+            let fullPath = (mountPath as NSString).appendingPathComponent(relPath)
+            if let rule = RuleEngine.evaluate(path: fullPath, rules: rules),
+               let event = FileJanitor.delete(path: fullPath, rule: rule, volume: volume) {
+                events.append(event)
+                enumerator.skipDescendants()
+            }
+        }
+        return events
+    }
+
+    // MARK: - Callback
+
+    private static let eventCallback: FSEventStreamCallback = { (
+        _: ConstFSEventStreamRef,
+        info: UnsafeMutableRawPointer?,
+        numEvents: Int,
+        eventPaths: UnsafeMutableRawPointer,
+        eventFlags: UnsafePointer<FSEventStreamEventFlags>,
+        _: UnsafePointer<FSEventStreamEventId>
+    ) in
+        guard let info else { return }
+        let watcher = Unmanaged<FSEventsWatcher>.fromOpaque(info).takeUnretainedValue()
+
+        let cfPaths = Unmanaged<CFArray>.fromOpaque(eventPaths).takeUnretainedValue()
+        guard let paths = cfPaths as? [String] else { return }
+        let flagsBuf = UnsafeBufferPointer(start: eventFlags, count: numEvents)
+
+        let relevantMask =
+            FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated) |
+            FSEventStreamEventFlags(kFSEventStreamEventFlagItemRenamed) |
+            FSEventStreamEventFlags(kFSEventStreamEventFlagItemModified)
+
+        var candidates: [String] = []
+        candidates.reserveCapacity(min(numEvents, paths.count))
+        for i in 0..<min(numEvents, paths.count) {
+            if flagsBuf[i] & relevantMask != 0 {
+                candidates.append(paths[i])
+            }
+        }
+        if candidates.isEmpty { return }
+
+        let mountPath = watcher.mountPath
+        Task { @MainActor in
+            FSEventsWatcher.processLiveEvents(candidates: candidates, mountPath: mountPath)
+        }
+    }
+
+    @MainActor
+    private static func processLiveEvents(candidates: [String], mountPath: String) {
+        let state = AppState.shared
+        guard state.isWatching else { return }
+        guard let volume = state.volumes.first(where: { $0.mountPath == mountPath }),
+              volume.isEnabled, !volume.isEjected else { return }
+
+        let rules = state.rules
+        var deletedAny = false
+        for path in candidates {
+            if let rule = RuleEngine.evaluate(path: path, rules: rules),
+               let event = FileJanitor.delete(path: path, rule: rule, volume: volume) {
+                state.record(event)
+                deletedAny = true
+            }
+        }
+        if deletedAny {
+            state.flashStatusIcon()
+        }
+    }
+}
