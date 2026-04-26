@@ -6,5 +6,92 @@
     <link>https://raw.githubusercontent.com/Foiler25/DotZap/main/appcast.xml</link>
     <description>DotZap updates</description>
     <language>en</language>
+      <item>
+      <title>DotZap 1.1.1</title>
+      <pubDate>Sun, 26 Apr 2026 14:39:59 +0000</pubDate>
+      <sparkle:version>1.1.1</sparkle:version>
+      <sparkle:shortVersionString>1.1.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.1.1
+
+The first public release of DotZap — a macOS menu-bar utility that silently
+deletes Apple/Windows metadata junk (`._*`, `.DS_Store`, `Thumbs.db`,
+`desktop.ini`, …) the moment external drives create them.
+
+## New
+
+### What it does
+- **Watches every mounted volume** automatically. Plug a drive in and DotZap
+  starts cleaning within a second; eject it and DotZap stops.
+- **Cleans nine kinds of metadata junk out of the box**: Apple Double `._*`,
+  `.DS_Store`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `.TemporaryItems`,
+  `__MACOSX`, `Thumbs.db`, and `desktop.ini`. Each rule is individually
+  toggleable.
+- **Custom rules**. Add your own patterns — exact name, prefix, or glob — for
+  anything else you'd rather not see (`*.tmp~`, `.obsidian`, you pick).
+- **Per-volume control**. Disable cleaning on a specific drive without
+  touching the global setting, or use the per-volume **whitelist** to protect
+  files that match a built-in rule but you actually want to keep
+  (e.g. `*.psd` on a Photoshop drive).
+- **Clean Now**. Tap the button in a volume's expanded row to do a one-shot
+  recursive scan instead of waiting for the next file event.
+- **Activity log** with lifetime stats. See exactly what was deleted, when,
+  from where, and how much space you've recovered. Capped at 500 recent
+  entries; lifetime totals persist across launches.
+
+### The interface
+- **Menu-bar only** — no Dock icon, no main window, no floating clutter. The
+  `sparkles.rectangle.stack` icon brightens when active and dims when paused.
+- **Left-click** the icon to pause or resume globally.
+- **Right-click** to open a glass-styled settings panel (frosted vibrancy,
+  rounded corners, subtle stroke — built to feel like a first-party utility).
+  Click anywhere outside it to dismiss.
+- **Three tabs**: Volumes, Rules, Activity. Plus an **About** tab with version
+  info, a manual *Check for Updates…* button, and a Quit shortcut (⌘Q).
+- **Launch at Login** toggle in the Volumes tab — DotZap starts itself when
+  you sign in, no Login Items dance required.
+
+### Auto-updates
+- **Built-in Sparkle updates** with EdDSA-signed releases. New versions get a
+  non-blocking prompt within 24 hours; you can disable auto-checks in the
+  About tab and still trigger manual checks. Every update's signature is
+  verified against a public key embedded at build time before installation.
+
+### Smart about what it can't touch
+- DotZap **silently skips paths inside system-owned directories** like
+  `.TemporaryItems/`, `.Spotlight-V100/`, `.Trashes/`, and `.fseventsd/`.
+  These are root-owned even on external drives, so deletion would always
+  fail. The first attempt on each protected location is remembered for the
+  session — no retry storm, no log spam.
+- **Full Disk Access banner** in the Volumes tab walks you through granting
+  the required system permission and re-checks after you click Open Settings.
+
+### Polish
+- **App icon** rendered from the same SF Symbol used in the menu bar — white
+  glyph on a blue gradient squircle, generated at all 10 macOS sizes
+  (16/32/128/256/512 @ 1x and 2x).
+- **Compact About tab layout** — every detail fits in one view at the panel's
+  default size; no scrolling required.
+
+## License
+
+DotZap is now licensed under the [GNU General Public License v3.0](https://github.com/Foiler25/DotZap/blob/main/LICENSE).
+You're free to modify and redistribute your own builds, as long as the source
+is made available under the same license.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in
+  the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.1.1.dmg`, open it, drag DotZap to
+  Applications. First launch: right-click → **Open**, then System Settings →
+  **Privacy & Security** → **Open Anyway**. Then grant Full Disk Access via
+  the banner in the Volumes tab.
+
+**Requires macOS 14 (Sonoma) or later.**
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.1.1/DotZap-1.1.1.dmg" sparkle:edSignature="Up4RPUS/+8GMx5pQLSRk6W+WfqdnRo1XWNFjbefUeK61RmAIUshJzlAGNMCD0YzN8GUMc7GM54JeOmEZKNRRBA==" length="1617699" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
