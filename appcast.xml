@@ -202,5 +202,29 @@ This release puts you in charge of *how* DotZap deletes. You can now send matche
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.0/DotZap-1.2.0.dmg" sparkle:edSignature="l8ov8ymlOA0OW3LIxMiMmBIKyi4yUzlCUEjdSshmgQh8eqQHUDcGT2pVDT0pOuw4Msj2FgkxG1MlunXWDw1kAw==" length="1678122" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.2.1</title>
+      <pubDate>Mon, 27 Apr 2026 18:47:47 +0000</pubDate>
+      <sparkle:version>1.2.1</sparkle:version>
+      <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.2.1
+
+A small but useful follow-up to 1.2.0: try out new (or aggressive) rules on a volume without committing to actually deleting anything.
+
+## New
+
+- **Dry-run mode, per volume.** Each volume in the Volumes tab now has a *Dry run* toggle. When it's on, DotZap evaluates your rules and logs what it *would* have removed — but leaves every file in place. Great for auditing rules on an unfamiliar drive before letting them loose.
+- **DRY RUN badge in Activity.** Matched-but-not-deleted files appear in the Activity log with a blue **DRY RUN** badge (alongside the existing orange **SKIPPED** badge from the size cap). The tooltip shows which rule matched and notes that nothing was deleted.
+- **Stats stay honest.** Dry-run entries are visible in Activity but don't count toward your "files deleted" or "bytes freed" totals — so flipping dry-run on a volume won't pollute your lifetime stats.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.2.1.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.1/DotZap-1.2.1.dmg" sparkle:edSignature="rsAHfc9RE13J9TfNF+SU1ZDtsvrPiDeAzPj6hYU4pujb7BlGcYcOf6le69Dzb9nPEBNo9MgmFL9ItYTJdx6/Dg==" length="1684625" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
