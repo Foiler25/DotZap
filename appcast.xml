@@ -173,5 +173,34 @@ A small visual polish release.
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.1.3/DotZap-1.1.3.dmg" sparkle:edSignature="eVGh+kOi+VNWLzKUSEeeLhvbG6mH6JzNLydFhG/dzveO2uwvX39npUUUBqqbEYxqW+nSRNJIr6HsT1Oc+P4KBQ==" length="1642221" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.2.0</title>
+      <pubDate>Mon, 27 Apr 2026 15:35:40 +0000</pubDate>
+      <sparkle:version>1.2.0</sparkle:version>
+      <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.2.0
+
+This release puts you in charge of *how* DotZap deletes. You can now send matched files to the Trash instead of vaporizing them, and set a size cap so large files are protected even when a rule would otherwise sweep them up.
+
+## New
+
+- **Move to Trash (default on).** Matched files now go to the Trash by default, so anything DotZap removes is recoverable from Finder. Toggle it off in the About tab if you'd rather have permanent deletes like before.
+- **Size-cap safety net.** A new "Skip files larger than" setting (default **50 MB**) holds back any file over the limit, even if a rule matches. Adjust the threshold in the About tab — handy if you want aggressive rules without the risk of nuking a stray disk image or video.
+- **Skipped files are visible.** When a file is held back by the size cap, it shows up in the Activity log with an orange **SKIPPED** badge and a tooltip explaining which rule matched. Nothing is silently ignored.
+
+## Changed
+
+- **Lifetime stats now count only real deletions.** Files that get skipped by the size cap are logged in Activity but don't inflate your "files deleted" or "bytes freed" totals.
+- **Accurate version in About.** The About tab now reports the correct app version and build number (previous builds could show a stale `1.0.0 (1)`).
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.2.0.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.0/DotZap-1.2.0.dmg" sparkle:edSignature="l8ov8ymlOA0OW3LIxMiMmBIKyi4yUzlCUEjdSshmgQh8eqQHUDcGT2pVDT0pOuw4Msj2FgkxG1MlunXWDw1kAw==" length="1678122" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
