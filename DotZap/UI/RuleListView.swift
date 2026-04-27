@@ -49,6 +49,7 @@ struct RuleListView: View {
                         Text("No custom rules yet.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
+                            .padding(.horizontal, 14)
                             .padding(.vertical, 6)
                     } else {
                         ForEach(customRules) { rule in
