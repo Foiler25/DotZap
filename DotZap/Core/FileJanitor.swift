@@ -81,6 +81,18 @@ enum FileJanitor {
             )
         }
 
+        // Dry-run mode — emit an event showing what *would* have been deleted,
+        // but leave the file in place. Lifetime stats also ignore these.
+        if volume.dryRun {
+            return DeletionEvent(
+                path: path,
+                ruleName: rule.name,
+                bytes: size,
+                volumeName: volume.name,
+                status: .dryRun
+            )
+        }
+
         do {
             if settings.moveToTrash {
                 try fm.trashItem(at: URL(fileURLWithPath: path),

@@ -151,7 +151,22 @@ private struct DeletionEventRow: View {
         return Self.relative.localizedString(for: event.timestamp, relativeTo: Date())
     }
 
-    private var isSkipped: Bool { event.status == .skippedOversize }
+    private var isDeleted: Bool { event.status == .deleted }
+    private var badge: (label: String, color: Color)? {
+        switch event.status {
+        case .deleted:         return nil
+        case .skippedOversize: return ("SKIPPED", .orange)
+        case .dryRun:          return ("DRY RUN", .blue)
+        }
+    }
+
+    private var helpText: String {
+        switch event.status {
+        case .deleted:         return ""
+        case .skippedOversize: return "Matched “\(event.ruleName)” but exceeded the file-size cap"
+        case .dryRun:          return "Matched “\(event.ruleName)” — would have been deleted (dry-run mode)"
+        }
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -160,17 +175,17 @@ private struct DeletionEventRow: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: 130, alignment: .leading)
-                .foregroundStyle(isSkipped ? .secondary : .primary)
+                .foregroundStyle(isDeleted ? .primary : .secondary)
 
-            if isSkipped {
-                Text("SKIPPED")
+            if let badge {
+                Text(badge.label)
                     .font(.system(size: 8, weight: .bold))
                     .padding(.horizontal, 4)
                     .padding(.vertical, 1)
                     .background(
-                        Capsule().fill(Color.orange.opacity(0.25))
+                        Capsule().fill(badge.color.opacity(0.25))
                     )
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(badge.color)
             } else {
                 Text(event.ruleName)
                     .font(.system(size: 10))
@@ -199,10 +214,8 @@ private struct DeletionEventRow: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.white.opacity(isSkipped ? 0.02 : 0.04))
+                .fill(Color.white.opacity(isDeleted ? 0.04 : 0.02))
         )
-        .help(isSkipped
-              ? "Matched “\(event.ruleName)” but exceeded the file-size cap"
-              : "")
+        .help(helpText)
     }
 }

@@ -20,6 +20,7 @@ struct DeletionEvent: Codable, Identifiable, Hashable {
     enum Status: String, Codable {
         case deleted          // actual deletion (or trash)
         case skippedOversize  // matched a rule but exceeded the size cap
+        case dryRun           // matched a rule but volume is in dry-run mode
     }
 
     var id: UUID
