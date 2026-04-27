@@ -122,6 +122,12 @@ final class VolumeWatcher {
 
         if AppState.shared.isWatching, volume.isEnabled {
             startWatching(mountPath: volume.mountPath)
+            // Kick off an initial one-shot scan. FSEventStreamCreate doesn't do
+            // any I/O, so without this the TCC "Removable Volumes" prompt only
+            // fires on the user's first manual action. Scanning here triggers
+            // the prompt at app launch / drive mount and also cleans any junk
+            // that accumulated while the volume was untracked.
+            cleanNow(mountPath: volume.mountPath)
         }
     }
 

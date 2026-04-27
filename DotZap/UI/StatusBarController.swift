@@ -24,9 +24,19 @@ final class StatusBarController: NSObject {
     private var statusItem: NSStatusItem?
     private var panel: SettingsPanel?
     private var globalClickMonitor: Any?
+    private var localRightClickMonitor: Any?
     private var cancellables: Set<AnyCancellable> = []
 
     private override init() { super.init() }
+
+    deinit {
+        if let monitor = localRightClickMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = globalClickMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+    }
 
     func setup() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -34,16 +44,39 @@ final class StatusBarController: NSObject {
 
         if let button = item.button {
             button.target = self
-            button.action = #selector(handleClick(_:))
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.action = #selector(handleLeftClick(_:))
+            button.sendAction(on: [.leftMouseDown])
             button.imagePosition = .imageOnly
         }
+        installRightClickMonitor()
         refreshIcon()
 
         AppState.shared.$isWatching
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.refreshIcon() }
             .store(in: &cancellables)
+    }
+
+    /// Right-click and Ctrl-Left-Click on `NSStatusBarButton` are not delivered
+    /// to the action target on macOS Tahoe (26) — the system consumes them
+    /// unless a `menu` is assigned. Catch them via a local event monitor before
+    /// the system can swallow them.
+    private func installRightClickMonitor() {
+        guard localRightClickMonitor == nil else { return }
+        localRightClickMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.rightMouseDown, .leftMouseDown]
+        ) { [weak self] event in
+            guard let self = self,
+                  let buttonWindow = self.statusItem?.button?.window,
+                  event.window === buttonWindow else {
+                return event
+            }
+            let isContextual = event.type == .rightMouseDown
+                || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
+            guard isContextual else { return event }
+            DispatchQueue.main.async { self.togglePanel() }
+            return nil
+        }
     }
 
     func refreshIcon() {
@@ -72,15 +105,8 @@ final class StatusBarController: NSObject {
 
     // MARK: - Click handling
 
-    @objc private func handleClick(_ sender: Any?) {
-        guard let event = NSApp.currentEvent else { return }
-        let isRight = event.type == .rightMouseUp
-            || (event.type == .leftMouseUp && event.modifierFlags.contains(.control))
-        if isRight {
-            togglePanel()
-        } else {
-            AppState.shared.toggle()
-        }
+    @objc private func handleLeftClick(_ sender: Any?) {
+        AppState.shared.toggle()
     }
 
     // MARK: - Panel

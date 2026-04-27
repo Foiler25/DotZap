@@ -17,6 +17,25 @@
 import SwiftUI
 import AppKit
 
+/// Cache `NSWorkspace.icon(forFile:)` lookups per mount path. Without this,
+/// every SwiftUI re-render of `VolumeRow` allocates a fresh NSImage, which
+/// adds up under high FSEvents-driven re-render rates.
+@MainActor
+private enum DriveIconCache {
+    private static var cache: [String: NSImage] = [:]
+
+    static func icon(for mountPath: String) -> NSImage {
+        if let cached = cache[mountPath] { return cached }
+        let icon = NSWorkspace.shared.icon(forFile: mountPath)
+        cache[mountPath] = icon
+        return icon
+    }
+
+    static func invalidate(_ mountPath: String) {
+        cache.removeValue(forKey: mountPath)
+    }
+}
+
 struct VolumeListView: View {
     @ObservedObject private var state = AppState.shared
 
@@ -111,7 +130,7 @@ private struct VolumeRow: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: volume.mountPath))
+            Image(nsImage: DriveIconCache.icon(for: volume.mountPath))
                 .resizable()
                 .frame(width: 28, height: 28)
 

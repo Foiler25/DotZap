@@ -35,6 +35,7 @@ final class AppState: ObservableObject {
 
     private static let maxEvents = 500
     private static let ejectedPruneInterval: TimeInterval = 60 * 60 * 24 * 7
+    private static let persistDebounce: TimeInterval = 0.75
 
     @Published var isWatching: Bool = true
     @Published var volumes: [Volume] = []
@@ -44,6 +45,17 @@ final class AppState: ObservableObject {
     @Published var lifetimeBytesFreed: Int = 0
 
     private var hasLoaded = false
+
+    private struct DirtyBits: OptionSet {
+        let rawValue: Int
+        static let events    = DirtyBits(rawValue: 1 << 0)
+        static let volumes   = DirtyBits(rawValue: 1 << 1)
+        static let stats     = DirtyBits(rawValue: 1 << 2)
+        static let rules     = DirtyBits(rawValue: 1 << 3)
+        static let watching  = DirtyBits(rawValue: 1 << 4)
+    }
+    private var dirty: DirtyBits = []
+    private var flushTimer: Timer?
 
     private init() {}
 
@@ -111,32 +123,54 @@ final class AppState: ObservableObject {
         try? JSONEncoder().encode(value)
     }
 
-    func persistVolumes() {
-        if let data = encode(volumes) {
-            UserDefaults.standard.set(data, forKey: Keys.volumes)
+    func persistVolumes()       { markDirty(.volumes) }
+    func persistRules()         { markDirty(.rules) }
+    func persistEvents()        { markDirty(.events) }
+    func persistLifetimeStats() { markDirty(.stats) }
+    func persistIsWatching()    { markDirty(.watching) }
+
+    /// Coalesce UserDefaults writes onto a debounce timer so high-frequency
+    /// FSEvents-driven deletions don't generate a write storm. Calls that
+    /// happen within `persistDebounce` collapse into a single flush.
+    private func markDirty(_ bits: DirtyBits) {
+        dirty.formUnion(bits)
+        guard flushTimer == nil else { return }
+        flushTimer = Timer.scheduledTimer(
+            withTimeInterval: Self.persistDebounce, repeats: false
+        ) { [weak self] _ in
+            Task { @MainActor in self?.flushDirty() }
         }
     }
 
-    func persistRules() {
-        if let data = encode(rules) {
-            UserDefaults.standard.set(data, forKey: Keys.rules)
-        }
-    }
-
-    func persistEvents() {
-        if let data = encode(recentEvents) {
-            UserDefaults.standard.set(data, forKey: Keys.recentEvents)
-        }
-    }
-
-    func persistLifetimeStats() {
+    private func flushDirty() {
+        flushTimer?.invalidate()
+        flushTimer = nil
+        let bits = dirty
+        dirty = []
         let defaults = UserDefaults.standard
-        defaults.set(lifetimeFilesDeleted, forKey: Keys.lifetimeFilesDeleted)
-        defaults.set(lifetimeBytesFreed, forKey: Keys.lifetimeBytesFreed)
+        if bits.contains(.events), let data = encode(recentEvents) {
+            defaults.set(data, forKey: Keys.recentEvents)
+        }
+        if bits.contains(.volumes), let data = encode(volumes) {
+            defaults.set(data, forKey: Keys.volumes)
+        }
+        if bits.contains(.rules), let data = encode(rules) {
+            defaults.set(data, forKey: Keys.rules)
+        }
+        if bits.contains(.stats) {
+            defaults.set(lifetimeFilesDeleted, forKey: Keys.lifetimeFilesDeleted)
+            defaults.set(lifetimeBytesFreed, forKey: Keys.lifetimeBytesFreed)
+        }
+        if bits.contains(.watching) {
+            defaults.set(isWatching, forKey: Keys.isWatching)
+        }
     }
 
-    func persistIsWatching() {
-        UserDefaults.standard.set(isWatching, forKey: Keys.isWatching)
+    /// Force-flush any pending debounced writes immediately. Call before quit
+    /// or for actions where the user expects state to be persisted right away.
+    func flushPendingWrites() {
+        guard !dirty.isEmpty else { return }
+        flushDirty()
     }
 
     // MARK: - Mutations
@@ -227,21 +261,41 @@ final class AppState: ObservableObject {
     }
 
     func record(_ event: DeletionEvent) {
-        recentEvents.insert(event, at: 0)
+        recordBatch([event])
+    }
+
+    /// Ingest a batch of deletions in a single state mutation. Cheaper than
+    /// calling `record(_:)` per item: SwiftUI invalidates once, the dirty-bit
+    /// timer is armed once, and `volumes` mutates once even when many events
+    /// share the same volume.
+    func recordBatch(_ events: [DeletionEvent]) {
+        guard !events.isEmpty else { return }
+
+        recentEvents.insert(contentsOf: events, at: 0)
         if recentEvents.count > Self.maxEvents {
             recentEvents.removeLast(recentEvents.count - Self.maxEvents)
         }
-        lifetimeFilesDeleted += 1
-        lifetimeBytesFreed   += event.bytes
+        lifetimeFilesDeleted += events.count
+        let totalBytes = events.reduce(0) { $0 + $1.bytes }
+        lifetimeBytesFreed += totalBytes
 
-        if let index = volumes.firstIndex(where: { $0.name == event.volumeName }) {
-            volumes[index].lifetimeFilesDeleted += 1
-            volumes[index].lifetimeBytesFreed   += event.bytes
-            persistVolumes()
+        var volumeTouched = false
+        var volumeDeltas: [String: (count: Int, bytes: Int)] = [:]
+        for event in events {
+            var d = volumeDeltas[event.volumeName] ?? (0, 0)
+            d.count += 1
+            d.bytes += event.bytes
+            volumeDeltas[event.volumeName] = d
         }
-
-        persistEvents()
-        persistLifetimeStats()
+        for (volumeName, delta) in volumeDeltas {
+            if let index = volumes.firstIndex(where: { $0.name == volumeName }) {
+                volumes[index].lifetimeFilesDeleted += delta.count
+                volumes[index].lifetimeBytesFreed   += delta.bytes
+                volumeTouched = true
+            }
+        }
+        if volumeTouched { markDirty(.volumes) }
+        markDirty([.events, .stats])
     }
 
     func clearActivity() {

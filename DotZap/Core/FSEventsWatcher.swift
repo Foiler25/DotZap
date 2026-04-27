@@ -163,17 +163,24 @@ final class FSEventsWatcher {
         guard let volume = state.volumes.first(where: { $0.mountPath == mountPath }),
               volume.isEnabled, !volume.isEjected else { return }
 
+        // Snapshot rules + volume on the main actor, then do the actual filesystem
+        // work on a background queue so the UI thread isn't blocked by removeItem
+        // syscalls during high-volume FSEvents bursts.
         let rules = state.rules
-        var deletedAny = false
-        for path in candidates {
-            if let rule = RuleEngine.evaluate(path: path, rules: rules),
-               let event = FileJanitor.delete(path: path, rule: rule, volume: volume) {
-                state.record(event)
-                deletedAny = true
+        Task.detached(priority: .utility) {
+            var collected: [DeletionEvent] = []
+            for path in candidates {
+                if let rule = RuleEngine.evaluate(path: path, rules: rules),
+                   let event = FileJanitor.delete(path: path, rule: rule, volume: volume) {
+                    collected.append(event)
+                }
             }
-        }
-        if deletedAny {
-            state.flashStatusIcon()
+            guard !collected.isEmpty else { return }
+            let finalEvents = collected
+            await MainActor.run {
+                AppState.shared.recordBatch(finalEvents)
+                AppState.shared.flashStatusIcon()
+            }
         }
     }
 }
