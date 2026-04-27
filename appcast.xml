@@ -93,5 +93,54 @@ is made available under the same license.
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.1.1/DotZap-1.1.1.dmg" sparkle:edSignature="Up4RPUS/+8GMx5pQLSRk6W+WfqdnRo1XWNFjbefUeK61RmAIUshJzlAGNMCD0YzN8GUMc7GM54JeOmEZKNRRBA==" length="1617699" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.1.2</title>
+      <pubDate>Mon, 27 Apr 2026 00:35:39 +0000</pubDate>
+      <sparkle:version>1.1.2</sparkle:version>
+      <sparkle:shortVersionString>1.1.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.1.2
+
+A small but important bugfix and quality-of-life release.
+
+## Fixed
+
+- **Right-click now opens the panel on macOS Tahoe.** On macOS 26, the
+  system silently consumed right-clicks (and Ctrl-Left-Clicks) on menu-bar
+  status icons unless the app assigned an explicit menu. DotZap now
+  intercepts these clicks before the system swallows them, so the glass
+  settings panel opens reliably across macOS 14, 15, and 26.
+
+## Changed
+
+- **Permission prompt and initial cleanup happen automatically on launch.**
+  When DotZap detects a mounted drive at startup (or when you plug one in),
+  it now runs a one-shot scan immediately. The macOS "Removable Volumes"
+  permission prompt appears right away rather than waiting for you to click
+  *Clean Now* — and any junk that accumulated while DotZap wasn't running
+  gets cleaned without you having to do anything.
+- **Significantly lower CPU and memory under heavy churn.** During bursts
+  of file activity (e.g. a Finder copy or an Xcode build to a watched
+  drive), DotZap previously did filesystem deletions on the main thread
+  and wrote to disk after every single file. It now batches deletions
+  onto a background queue and coalesces persistence writes so the panel
+  stays smooth and idle CPU/RAM stay tiny.
+- **Drive icons load once per volume.** The Volumes tab no longer
+  re-allocates a new icon image on every UI refresh.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…*
+  in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.1.2.dmg`, open it, drag DotZap to
+  Applications. First launch: right-click → **Open**, then System
+  Settings → **Privacy & Security** → **Open Anyway**. Then grant Full
+  Disk Access via the banner in the Volumes tab.
+
+**Requires macOS 14 (Sonoma) or later.**
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.1.2/DotZap-1.1.2.dmg" sparkle:edSignature="IcpB5YE8d0Qr18L2h8UWRWHpbsOqZZdjAM4U6Gx0mHHv8ucp19r09nCrVDe1yFbnddNk6PGVXBngK4cd2yK4Dw==" length="1641828" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
