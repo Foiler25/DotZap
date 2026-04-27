@@ -10,6 +10,7 @@ SCHEME="DotZap"
 APP_NAME="DotZap.app"
 SPARKLE_KEYCHAIN_ACCOUNT="dotzap"
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
 cd "$REPO_ROOT"
 
@@ -33,7 +34,34 @@ DMG_NAME="DotZap-${VERSION}.dmg"
 BUILD_DIR="build"
 APP_PATH="$BUILD_DIR/Build/Products/Release/$APP_NAME"
 STAGE_DIR="$(mktemp -d -t dotzap-dmg-stage)"
-trap 'rm -rf "$STAGE_DIR"' EXIT
+
+# Cleanup on exit (success or failure):
+#   1. Remove the staging dir.
+#   2. Unregister and remove the build/ derived-data directory so it doesn't
+#      linger as a stale LaunchServices entry — Shortcuts.app and Spotlight
+#      compete with this copy when it sticks around, picking it over the
+#      real /Applications install.
+#   3. Sweep stale `/Volumes/dmg.*/DotZap.app` registrations left behind by
+#      `create-dmg`'s temporary mounts. Only ones whose mount no longer
+#      exists on disk are unregistered.
+cleanup() {
+  rm -rf "$STAGE_DIR" || true
+  if [[ -n "${APP_PATH-}" && -d "$APP_PATH" ]]; then
+    "$LSREG" -u "$APP_PATH" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${BUILD_DIR-}" && -d "$BUILD_DIR" ]]; then
+    rm -rf "$BUILD_DIR" || true
+  fi
+  # Sweep zombie DMG-mount registrations for our app.
+  if [[ -x "$LSREG" ]]; then
+    "$LSREG" -dump 2>/dev/null \
+      | awk '/^path:[[:space:]]+\/Volumes\/.*\/DotZap\.app[[:space:]]/{print $2}' \
+      | while IFS= read -r p; do
+          [[ -e "$p" ]] || "$LSREG" -u "$p" >/dev/null 2>&1 || true
+        done
+  fi
+}
+trap cleanup EXIT
 
 echo "==> Building $APP_NAME (version $VERSION, Release, unsigned)"
 xcodebuild \
