@@ -157,6 +157,7 @@ private struct DeletionEventRow: View {
         case .deleted:         return nil
         case .skippedOversize: return ("SKIPPED", .orange)
         case .dryRun:          return ("DRY RUN", .blue)
+        case .xattrStripped:   return nil   // rendered as a system-event row instead
         }
     }
 
@@ -165,10 +166,53 @@ private struct DeletionEventRow: View {
         case .deleted:         return ""
         case .skippedOversize: return "Matched “\(event.ruleName)” but exceeded the file-size cap"
         case .dryRun:          return "Matched “\(event.ruleName)” — would have been deleted (dry-run mode)"
+        case .xattrStripped:   return "One-shot extended-attribute strip"
         }
     }
 
     var body: some View {
+        if event.status == .xattrStripped {
+            systemEventRow
+        } else {
+            fileEventRow
+        }
+    }
+
+    private var systemEventRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "tag.slash.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(.purple)
+                .frame(width: 16)
+
+            Text(event.ruleName)
+                .font(.system(size: 11))
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer()
+
+            Text(event.volumeName)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(maxWidth: 60, alignment: .trailing)
+
+            Text(timeString)
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+                .frame(width: 60, alignment: .trailing)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.purple.opacity(0.06))
+        )
+        .help(helpText)
+    }
+
+    private var fileEventRow: some View {
         HStack(spacing: 8) {
             Text(event.fileName)
                 .font(.system(size: 11, design: .monospaced))

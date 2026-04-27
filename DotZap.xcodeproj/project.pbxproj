@@ -32,6 +32,7 @@
 		FB0000000000000000000031 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = FA0000000000000000000042 /* Sparkle */; };
 		FB0000000000000000000051 /* UpdaterModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000051 /* UpdaterModel.swift */; };
 		FB0000000000000000000052 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000052 /* AboutView.swift */; };
+		FB0000000000000000000053 /* XattrStripper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000053 /* XattrStripper.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,6 +63,7 @@
 		FA0000000000000000000031 /* DotZap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DotZap.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA0000000000000000000051 /* UpdaterModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterModel.swift; sourceTree = "<group>"; };
 		FA0000000000000000000052 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		FA0000000000000000000053 /* XattrStripper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XattrStripper.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +113,7 @@
 				FA0000000000000000000004 /* FSEventsWatcher.swift */,
 				FA0000000000000000000005 /* FileJanitor.swift */,
 				FA0000000000000000000006 /* RuleEngine.swift */,
+				FA0000000000000000000053 /* XattrStripper.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -263,6 +266,7 @@
 				FB0000000000000000000018 /* LoginItemManager.swift in Sources */,
 				FB0000000000000000000051 /* UpdaterModel.swift in Sources */,
 				FB0000000000000000000052 /* AboutView.swift in Sources */,
+				FB0000000000000000000053 /* XattrStripper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -411,7 +415,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Loofa.DotZap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -440,7 +444,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Loofa.DotZap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

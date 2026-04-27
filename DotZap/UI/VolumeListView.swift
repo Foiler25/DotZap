@@ -105,6 +105,8 @@ private struct VolumeRow: View {
     @ObservedObject private var state = AppState.shared
     @State private var expanded = false
     @State private var newWhitelist: String = ""
+    @State private var pendingStripConfirm: Bool = false
+    @State private var isStripping: Bool = false
 
     private var enabledBinding: Binding<Bool> {
         Binding(
@@ -262,9 +264,103 @@ private struct VolumeRow: View {
                 .buttonStyle(GlassButtonStyle(prominent: true))
                 .disabled(volume.isEjected)
             }
+
+            xattrStripSection
         }
         .padding(.horizontal, 10)
         .padding(.bottom, 10)
+    }
+
+    @ViewBuilder
+    private var xattrStripSection: some View {
+        Divider().overlay(Color.white.opacity(0.08))
+
+        if pendingStripConfirm {
+            VStack(alignment: .leading, spacing: 8) {
+                Label {
+                    Text("Strip extended attributes from every file on \(volume.name)?")
+                        .font(.system(size: 11))
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+                Text("This permanently removes Finder color tags, comments, and any \(Text("com.apple.metadata:*").font(.system(size: 10, design: .monospaced))) attributes — including ones some apps (Lightroom, Photos export) rely on. The fix prevents `._*` files from regenerating on exFAT/FAT32 volumes.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Spacer()
+                    Button("Cancel") {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            pendingStripConfirm = false
+                        }
+                    }
+                    .buttonStyle(GlassButtonStyle())
+                    Button("Strip Now") {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            pendingStripConfirm = false
+                        }
+                        runStrip()
+                    }
+                    .buttonStyle(GlassButtonStyle(prominent: true))
+                }
+            }
+            .transition(.opacity)
+        } else {
+            HStack {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Strip extended attributes")
+                        .font(.system(size: 11))
+                    Text(isStripping
+                         ? "Working… this may take a while on large volumes."
+                         : "One-shot. Stops `._*` files from regenerating on exFAT/FAT32.")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if isStripping {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Strip…") {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            pendingStripConfirm = true
+                        }
+                    }
+                    .buttonStyle(GlassButtonStyle())
+                    .disabled(volume.isEjected)
+                }
+            }
+        }
+    }
+
+    private func runStrip() {
+        let mountPath = volume.mountPath
+        let volumeName = volume.name
+        isStripping = true
+        Task.detached(priority: .userInitiated) {
+            let result = XattrStripper.strip(at: mountPath)
+            await MainActor.run {
+                let summary: String
+                if result.filesModified == 0 {
+                    summary = result.errors > 0
+                        ? "No xattrs cleared (\(result.errors) errors)"
+                        : "No extended attributes found"
+                } else {
+                    summary = "Stripped xattrs from \(result.filesModified) "
+                        + (result.filesModified == 1 ? "file" : "files")
+                        + (result.errors > 0 ? " (\(result.errors) errors)" : "")
+                }
+                let event = DeletionEvent(
+                    path: mountPath,
+                    ruleName: summary,
+                    bytes: 0,
+                    volumeName: volumeName,
+                    status: .xattrStripped
+                )
+                AppState.shared.recordBatch([event])
+                isStripping = false
+            }
+        }
     }
 
     private func addWhitelist() {

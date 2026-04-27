@@ -21,6 +21,7 @@ struct DeletionEvent: Codable, Identifiable, Hashable {
         case deleted          // actual deletion (or trash)
         case skippedOversize  // matched a rule but exceeded the size cap
         case dryRun           // matched a rule but volume is in dry-run mode
+        case xattrStripped    // one-shot xattr strip on a volume (system event)
     }
 
     var id: UUID
