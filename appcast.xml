@@ -273,5 +273,30 @@ A small quality-of-life release: the Activity log is searchable now.
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.3/DotZap-1.2.3.dmg" sparkle:edSignature="MQfNQNadVDbn4pRlLCeZ2shUksCmdCxf1KD2XllE5IZJMU+hWSHV3G6eMe6+x0ckXhT6a0Dl2U8G8miSKaLiAw==" length="1757775" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.2.4</title>
+      <pubDate>Mon, 27 Apr 2026 20:21:34 +0000</pubDate>
+      <sparkle:version>1.2.4</sparkle:version>
+      <sparkle:shortVersionString>1.2.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.2.4
+
+A meatier follow-up to 1.2.0 with three features aimed at giving you more control over what gets deleted, and better tools for finding things after the fact.
+
+## New
+
+- **Dry-run mode, per volume.** Each volume row in the Volumes tab has a *Dry run* toggle. Flip it on and DotZap will evaluate your rules and log what it *would* have removed — without touching a single file. Great for sanity-checking new or aggressive rules on an unfamiliar drive. Matched files appear in Activity with a blue **DRY RUN** badge and a tooltip showing which rule would have caught them.
+- **Strip extended attributes.** Each volume row also has a *Strip extended attributes* action. It walks every file on the volume and clears all xattrs — Finder color tags, comments, `com.apple.metadata:*`, the works. macOS regenerates `._*` AppleDouble sidecars on non-APFS volumes (exFAT, FAT32, NTFS) every time a file with xattrs is written, so removing the source xattrs is the durable fix; sweeping the sidecars only treats the symptom. The button opens an inline confirmation that spells out exactly what's removed (and warns that some apps — Lightroom, Photos export — store data in xattrs). The volume row shows a spinner while it runs, and a purple system-event row in Activity logs how many files were modified.
+- **Search the Activity log.** A search bar above the event list filters by **filename**, **rule name**, or **volume name** as you type, with a clear button (×) to reset and an empty-state message when nothing matches. The query persists when you switch tabs, so flipping over to Volumes and back doesn't make you re-type.
+- **Honest stats.** Dry-run entries (and the existing 1.2.0 size-cap "skipped" entries) are visible in Activity but don't count toward your "files deleted" or "bytes freed" totals.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.2.4.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.4/DotZap-1.2.4.dmg" sparkle:edSignature="tcrUmqJvN4GSw7SGiy1ENcjwK8yCE/30OZCtl9zYWubIuKnpp3zSXfo4I6qlyzBbhAILDkR6tELwlAsaOdSKAA==" length="1828272" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
