@@ -27,6 +27,7 @@ struct Volume: Codable, Identifiable, Hashable {
     var lifetimeFilesDeleted: Int
     var lifetimeBytesFreed: Int
     var lastSeenAt: Date
+    var dryRun: Bool
 
     var id: String { mountPath }
 
@@ -40,7 +41,8 @@ struct Volume: Codable, Identifiable, Hashable {
         whitelist: [String] = [],
         lifetimeFilesDeleted: Int = 0,
         lifetimeBytesFreed: Int = 0,
-        lastSeenAt: Date = Date()
+        lastSeenAt: Date = Date(),
+        dryRun: Bool = false
     ) {
         self.mountPath = mountPath
         self.name = name
@@ -52,5 +54,23 @@ struct Volume: Codable, Identifiable, Hashable {
         self.lifetimeFilesDeleted = lifetimeFilesDeleted
         self.lifetimeBytesFreed = lifetimeBytesFreed
         self.lastSeenAt = lastSeenAt
+        self.dryRun = dryRun
+    }
+
+    // Back-compat decoder so volumes persisted by 1.2.0 (no `dryRun` field)
+    // still load after upgrade.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.mountPath            = try c.decode(String.self,   forKey: .mountPath)
+        self.name                 = try c.decode(String.self,   forKey: .name)
+        self.filesystem           = try c.decode(String.self,   forKey: .filesystem)
+        self.isEnabled            = try c.decode(Bool.self,     forKey: .isEnabled)
+        self.isEjected            = try c.decode(Bool.self,     forKey: .isEjected)
+        self.isNetwork            = try c.decode(Bool.self,     forKey: .isNetwork)
+        self.whitelist            = try c.decode([String].self, forKey: .whitelist)
+        self.lifetimeFilesDeleted = try c.decode(Int.self,      forKey: .lifetimeFilesDeleted)
+        self.lifetimeBytesFreed   = try c.decode(Int.self,      forKey: .lifetimeBytesFreed)
+        self.lastSeenAt           = try c.decode(Date.self,     forKey: .lastSeenAt)
+        self.dryRun               = try c.decodeIfPresent(Bool.self, forKey: .dryRun) ?? false
     }
 }

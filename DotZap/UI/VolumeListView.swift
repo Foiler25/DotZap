@@ -195,6 +195,24 @@ private struct VolumeRow: View {
                                                      countStyle: .file))
             }
 
+            HStack {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Dry run")
+                        .font(.system(size: 11))
+                    Text("Log matches without deleting. Useful for auditing rules.")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { volume.dryRun },
+                    set: { state.setVolumeDryRun(mountPath: volume.mountPath, dryRun: $0) }
+                ))
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
+            }
+
             VStack(alignment: .leading, spacing: 4) {
                 Text("Whitelist (glob patterns)")
                     .font(.system(size: 10, weight: .semibold))

@@ -244,6 +244,12 @@ final class AppState: ObservableObject {
         }
     }
 
+    func setVolumeDryRun(mountPath: String, dryRun: Bool) {
+        guard let index = volumes.firstIndex(where: { $0.mountPath == mountPath }) else { return }
+        volumes[index].dryRun = dryRun
+        persistVolumes()
+    }
+
     func addWhitelistEntry(mountPath: String, pattern: String) {
         let trimmed = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
