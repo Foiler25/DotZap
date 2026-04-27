@@ -113,16 +113,6 @@
 			path = DotZap;
 			sourceTree = "<group>";
 		};
-		ED0000000000000000000009 /* Intents */ = {
-			isa = PBXGroup;
-			children = (
-				FA0000000000000000000054 /* VolumeEntity.swift */,
-				FA0000000000000000000055 /* DotZapIntents.swift */,
-				FA0000000000000000000056 /* DotZapShortcuts.swift */,
-			);
-			path = Intents;
-			sourceTree = "<group>";
-		};
 		ED0000000000000000000003 /* Core */ = {
 			isa = PBXGroup;
 			children = (
@@ -186,6 +176,16 @@
 				FA0000000000000000000031 /* DotZap.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		ED0000000000000000000009 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				FA0000000000000000000054 /* VolumeEntity.swift */,
+				FA0000000000000000000055 /* DotZapIntents.swift */,
+				FA0000000000000000000056 /* DotZapShortcuts.swift */,
+			);
+			path = Intents;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -425,7 +425,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = "$(MARKETING_VERSION)";
+				CURRENT_PROJECT_VERSION = 1.2.5;
 				DEVELOPMENT_TEAM = 9KD2H9487R;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -435,7 +435,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.2.4;
+				MARKETING_VERSION = 1.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Loofa.DotZap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -454,7 +454,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = "$(MARKETING_VERSION)";
+				CURRENT_PROJECT_VERSION = 1.2.5;
 				DEVELOPMENT_TEAM = 9KD2H9487R;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -464,7 +464,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.2.4;
+				MARKETING_VERSION = 1.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Loofa.DotZap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
