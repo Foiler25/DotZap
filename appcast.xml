@@ -298,5 +298,38 @@ A meatier follow-up to 1.2.0 with three features aimed at giving you more contro
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.4/DotZap-1.2.4.dmg" sparkle:edSignature="tcrUmqJvN4GSw7SGiy1ENcjwK8yCE/30OZCtl9zYWubIuKnpp3zSXfo4I6qlyzBbhAILDkR6tELwlAsaOdSKAA==" length="1828272" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.2.5</title>
+      <pubDate>Mon, 27 Apr 2026 20:31:12 +0000</pubDate>
+      <sparkle:version>1.2.5</sparkle:version>
+      <sparkle:shortVersionString>1.2.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.2.5
+
+This release brings DotZap to Shortcuts, Siri, and Spotlight — you can now drive cleaning from automations, voice, or a quick keyboard search.
+
+## New
+
+- **Shortcuts.app integration.** DotZap now ships eight App Intents that show up automatically in Shortcuts.app. You can wire them into automations alongside any other action — for example, run a cleanup whenever a specific drive mounts, or strip xattrs nightly. Intents available:
+    - **Toggle DotZap** / **Pause DotZap** / **Resume DotZap** — global on/off.
+    - **Clean Volume** — one-shot scan on a chosen volume.
+    - **Strip Extended Attributes** — runs the xattr stripper on a chosen volume; returns a summary of how many files were modified.
+    - **Set Volume Enabled** — enable or disable cleaning for a single volume without touching the global state.
+    - **Get DotZap Stats** — returns "*N files cleaned, X freed*" as text you can drop into other actions.
+    - **List DotZap Volumes** — returns the names of currently-mounted, non-ejected volumes.
+- **Siri & Spotlight phrases.** Three of the most useful actions — *Toggle DotZap*, *Clean Volume*, and *Get Stats* — are also typeable in Spotlight and speakable to Siri without setting up a Shortcut first ("How many files has DotZap cleaned?", "Toggle DotZap", "Clean a volume with DotZap").
+
+## Fixed
+
+- **About tab version display.** The version line now reads "Version 1.2.5" cleanly, without a trailing build number that could be mistaken for a separate version when checking for updates.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.2.5.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.5/DotZap-1.2.5.dmg" sparkle:edSignature="twW31h166G+4+hD5kBc5mR0/p3iWC5x3NmVhPWelRCHB7OInqjhdptaOYerB+aC4aUdwqdzy4klB7Uj+PY/SCA==" length="1829255" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
