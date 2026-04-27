@@ -19,6 +19,9 @@ import SwiftUI
 struct ActivityView: View {
     @ObservedObject private var state = AppState.shared
     @State private var pendingClear: Bool = false
+    /// Hoisted into `SettingsView` so it persists across tab switches.
+    /// SettingsView passes a binding; ActivityView itself owns no search state.
+    @Binding var searchQuery: String
 
     private static let relative: RelativeDateTimeFormatter = {
         let f = RelativeDateTimeFormatter()
@@ -29,6 +32,20 @@ struct ActivityView: View {
     private var bytesString: String {
         ByteCountFormatter.string(fromByteCount: Int64(state.lifetimeBytesFreed),
                                   countStyle: .file)
+    }
+
+    private var trimmedQuery: String {
+        searchQuery.trimmingCharacters(in: .whitespaces)
+    }
+
+    private var filteredEvents: [DeletionEvent] {
+        let q = trimmedQuery.lowercased()
+        guard !q.isEmpty else { return state.recentEvents }
+        return state.recentEvents.filter {
+            $0.fileName.lowercased().contains(q)
+                || $0.ruleName.lowercased().contains(q)
+                || $0.volumeName.lowercased().contains(q)
+        }
     }
 
     var body: some View {
@@ -44,17 +61,72 @@ struct ActivityView: View {
             if state.recentEvents.isEmpty {
                 emptyState
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 4) {
-                        ForEach(state.recentEvents) { event in
-                            DeletionEventRow(event: event)
-                                .padding(.horizontal, 10)
+                searchField
+                    .padding(.horizontal, 14)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+
+                let events = filteredEvents
+                if events.isEmpty {
+                    noMatchesState
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 4) {
+                            ForEach(events) { event in
+                                DeletionEventRow(event: event)
+                                    .padding(.horizontal, 10)
+                            }
                         }
+                        .padding(.vertical, 8)
                     }
-                    .padding(.vertical, 8)
                 }
             }
         }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+            TextField("Search filename, rule, or volume", text: $searchQuery)
+                .textFieldStyle(.plain)
+                .font(.system(size: 11))
+            if !searchQuery.isEmpty {
+                Button {
+                    searchQuery = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("Clear search")
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+                )
+        )
+    }
+
+    private var noMatchesState: some View {
+        VStack(spacing: 4) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18))
+                .foregroundStyle(.tertiary)
+            Text("No events matching “\(trimmedQuery)”")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(30)
     }
 
     private var statsHeader: some View {
