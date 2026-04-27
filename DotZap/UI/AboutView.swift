@@ -19,6 +19,7 @@ import AppKit
 
 struct AboutView: View {
     @ObservedObject private var updater = UpdaterModel.shared
+    @ObservedObject private var state = AppState.shared
 
     private var versionString: String {
         let info = Bundle.main.infoDictionary
@@ -32,6 +33,7 @@ struct AboutView: View {
             VStack(spacing: 8) {
                 identityCard
                 updatesCard
+                behaviorCard
                 linksCard
                 quitRow
             }
@@ -98,6 +100,81 @@ struct AboutView: View {
         .padding(10)
         .background(card)
     }
+
+    private var behaviorCard: some View {
+        VStack(spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Move deletions to Trash")
+                        .font(.system(size: 11))
+                    Text("Recoverable from Finder. Turn off for permanent delete.")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { state.moveToTrash },
+                    set: {
+                        state.moveToTrash = $0
+                        state.persistSettings()
+                    }
+                ))
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
+            }
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Skip files larger than")
+                        .font(.system(size: 11))
+                    Text("Safety net — files over this never delete, even on rule match.")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                TextField("", value: sizeCapMBBinding,
+                          formatter: Self.integerFormatter)
+                    .frame(width: 56)
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+                Stepper("", value: sizeCapMBBinding, in: 1...10000, step: 10)
+                    .labelsHidden()
+                Text("MB")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .background(card)
+    }
+
+    private var sizeCapMBBinding: Binding<Int> {
+        Binding(
+            get: {
+                let bytes = state.maxFileSizeBytes
+                guard bytes > 0, bytes < Int.max else { return 50 }
+                return max(1, bytes / (1024 * 1024))
+            },
+            set: { newMB in
+                let clamped = max(1, min(newMB, 10000))
+                state.maxFileSizeBytes = clamped * 1024 * 1024
+                state.persistSettings()
+            }
+        )
+    }
+
+    private static let integerFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.allowsFloats = false
+        f.minimum = 1
+        f.maximum = 10000
+        return f
+    }()
 
     private var linksCard: some View {
         VStack(spacing: 4) {

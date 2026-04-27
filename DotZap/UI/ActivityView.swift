@@ -151,6 +151,8 @@ private struct DeletionEventRow: View {
         return Self.relative.localizedString(for: event.timestamp, relativeTo: Date())
     }
 
+    private var isSkipped: Bool { event.status == .skippedOversize }
+
     var body: some View {
         HStack(spacing: 8) {
             Text(event.fileName)
@@ -158,11 +160,23 @@ private struct DeletionEventRow: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: 130, alignment: .leading)
+                .foregroundStyle(isSkipped ? .secondary : .primary)
 
-            Text(event.ruleName)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            if isSkipped {
+                Text("SKIPPED")
+                    .font(.system(size: 8, weight: .bold))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(
+                        Capsule().fill(Color.orange.opacity(0.25))
+                    )
+                    .foregroundStyle(.orange)
+            } else {
+                Text(event.ruleName)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
 
             Spacer()
 
@@ -185,7 +199,10 @@ private struct DeletionEventRow: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.white.opacity(0.04))
+                .fill(Color.white.opacity(isSkipped ? 0.02 : 0.04))
         )
+        .help(isSkipped
+              ? "Matched “\(event.ruleName)” but exceeded the file-size cap"
+              : "")
     }
 }

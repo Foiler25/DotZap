@@ -17,12 +17,18 @@
 import Foundation
 
 struct DeletionEvent: Codable, Identifiable, Hashable {
+    enum Status: String, Codable {
+        case deleted          // actual deletion (or trash)
+        case skippedOversize  // matched a rule but exceeded the size cap
+    }
+
     var id: UUID
     var path: String
     var ruleName: String
     var bytes: Int
     var volumeName: String
     var timestamp: Date
+    var status: Status
 
     var fileName: String {
         (path as NSString).lastPathComponent
@@ -34,7 +40,8 @@ struct DeletionEvent: Codable, Identifiable, Hashable {
         ruleName: String,
         bytes: Int,
         volumeName: String,
-        timestamp: Date = Date()
+        timestamp: Date = Date(),
+        status: Status = .deleted
     ) {
         self.id = id
         self.path = path
@@ -42,5 +49,19 @@ struct DeletionEvent: Codable, Identifiable, Hashable {
         self.bytes = bytes
         self.volumeName = volumeName
         self.timestamp = timestamp
+        self.status = status
+    }
+
+    // Decoder with back-compat default for `status` so events persisted by
+    // 1.1.x (no status field) still decode after upgrade.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id         = try c.decode(UUID.self,   forKey: .id)
+        self.path       = try c.decode(String.self, forKey: .path)
+        self.ruleName   = try c.decode(String.self, forKey: .ruleName)
+        self.bytes      = try c.decode(Int.self,    forKey: .bytes)
+        self.volumeName = try c.decode(String.self, forKey: .volumeName)
+        self.timestamp  = try c.decode(Date.self,   forKey: .timestamp)
+        self.status     = try c.decodeIfPresent(Status.self, forKey: .status) ?? .deleted
     }
 }

@@ -21,6 +21,17 @@ import os.log
 enum FileJanitor {
     private static let log = OSLog(subsystem: "com.Loofa.DotZap", category: "FileJanitor")
 
+    /// Snapshot of mutable user settings read on the main actor before
+    /// dispatching deletion work to a background queue. Pass-by-value so the
+    /// background worker doesn't have to hop back to MainActor for each file.
+    struct DeletionSettings: Sendable {
+        let moveToTrash: Bool
+        let maxFileSizeBytes: Int
+
+        static let permissive = DeletionSettings(moveToTrash: false,
+                                                  maxFileSizeBytes: .max)
+    }
+
     /// Paths inside any of these directory names are owned by root (or another uid)
     /// even on volumes where the rest of the tree is user-owned. We can't delete
     /// inside them without privilege escalation, so don't try.
@@ -36,7 +47,12 @@ enum FileJanitor {
     private static var skippedPaths: Set<String> = []
 
     @discardableResult
-    static func delete(path: String, rule: CleanRule, volume: Volume) -> DeletionEvent? {
+    static func delete(
+        path: String,
+        rule: CleanRule,
+        volume: Volume,
+        settings: DeletionSettings
+    ) -> DeletionEvent? {
         let fm = FileManager.default
         guard fm.fileExists(atPath: path) else { return nil }
 
@@ -52,13 +68,32 @@ enum FileJanitor {
             size = 0
         }
 
-        do {
-            try fm.removeItem(atPath: path)
+        // Size cap — emit a skipped event so the user can see what was held
+        // back, but don't actually delete or trash. Lifetime stats ignore
+        // skipped events (filtered in AppState.recordBatch).
+        if size > settings.maxFileSizeBytes {
             return DeletionEvent(
                 path: path,
                 ruleName: rule.name,
                 bytes: size,
-                volumeName: volume.name
+                volumeName: volume.name,
+                status: .skippedOversize
+            )
+        }
+
+        do {
+            if settings.moveToTrash {
+                try fm.trashItem(at: URL(fileURLWithPath: path),
+                                 resultingItemURL: nil)
+            } else {
+                try fm.removeItem(atPath: path)
+            }
+            return DeletionEvent(
+                path: path,
+                ruleName: rule.name,
+                bytes: size,
+                volumeName: volume.name,
+                status: .deleted
             )
         } catch let error as NSError {
             if isPermissionError(error) {

@@ -89,21 +89,28 @@ final class FSEventsWatcher {
             let state = AppState.shared
             guard let volume = state.volumes.first(where: { $0.mountPath == mountPath }) else { return }
             let rules = state.rules
+            let settings = FileJanitor.DeletionSettings(
+                moveToTrash: state.moveToTrash,
+                maxFileSizeBytes: state.maxFileSizeBytes
+            )
 
             let events = await Task.detached(priority: .userInitiated) {
-                Self.scan(mountPath: mountPath, rules: rules, volume: volume)
+                Self.scan(mountPath: mountPath, rules: rules, volume: volume, settings: settings)
             }.value
 
-            for event in events {
-                state.record(event)
-            }
             if !events.isEmpty {
+                state.recordBatch(events)
                 state.flashStatusIcon()
             }
         }
     }
 
-    private static func scan(mountPath: String, rules: [CleanRule], volume: Volume) -> [DeletionEvent] {
+    private static func scan(
+        mountPath: String,
+        rules: [CleanRule],
+        volume: Volume,
+        settings: FileJanitor.DeletionSettings
+    ) -> [DeletionEvent] {
         var events: [DeletionEvent] = []
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(atPath: mountPath) else { return events }
@@ -111,9 +118,12 @@ final class FSEventsWatcher {
         while let relPath = enumerator.nextObject() as? String {
             let fullPath = (mountPath as NSString).appendingPathComponent(relPath)
             if let rule = RuleEngine.evaluate(path: fullPath, rules: rules),
-               let event = FileJanitor.delete(path: fullPath, rule: rule, volume: volume) {
+               let event = FileJanitor.delete(path: fullPath, rule: rule,
+                                              volume: volume, settings: settings) {
                 events.append(event)
-                enumerator.skipDescendants()
+                if event.status == .deleted {
+                    enumerator.skipDescendants()
+                }
             }
         }
         return events
@@ -163,15 +173,20 @@ final class FSEventsWatcher {
         guard let volume = state.volumes.first(where: { $0.mountPath == mountPath }),
               volume.isEnabled, !volume.isEjected else { return }
 
-        // Snapshot rules + volume on the main actor, then do the actual filesystem
-        // work on a background queue so the UI thread isn't blocked by removeItem
-        // syscalls during high-volume FSEvents bursts.
+        // Snapshot rules + settings on the main actor, then do the actual
+        // filesystem work on a background queue so the UI thread isn't blocked
+        // by removeItem syscalls during high-volume FSEvents bursts.
         let rules = state.rules
+        let settings = FileJanitor.DeletionSettings(
+            moveToTrash: state.moveToTrash,
+            maxFileSizeBytes: state.maxFileSizeBytes
+        )
         Task.detached(priority: .utility) {
             var collected: [DeletionEvent] = []
             for path in candidates {
                 if let rule = RuleEngine.evaluate(path: path, rules: rules),
-                   let event = FileJanitor.delete(path: path, rule: rule, volume: volume) {
+                   let event = FileJanitor.delete(path: path, rule: rule,
+                                                  volume: volume, settings: settings) {
                     collected.append(event)
                 }
             }
@@ -179,7 +194,9 @@ final class FSEventsWatcher {
             let finalEvents = collected
             await MainActor.run {
                 AppState.shared.recordBatch(finalEvents)
-                AppState.shared.flashStatusIcon()
+                if finalEvents.contains(where: { $0.status == .deleted }) {
+                    AppState.shared.flashStatusIcon()
+                }
             }
         }
     }

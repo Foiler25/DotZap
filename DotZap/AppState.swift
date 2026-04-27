@@ -31,11 +31,14 @@ final class AppState: ObservableObject {
         static let lifetimeBytesFreed  = "DotZap.lifetimeBytesFreed"
         static let didSeedBuiltIns     = "DotZap.didSeedBuiltIns"
         static let launchAtLogin       = "DotZap.launchAtLogin"
+        static let moveToTrash         = "DotZap.moveToTrash"
+        static let maxFileSizeBytes    = "DotZap.maxFileSizeBytes"
     }
 
     private static let maxEvents = 500
     private static let ejectedPruneInterval: TimeInterval = 60 * 60 * 24 * 7
     private static let persistDebounce: TimeInterval = 0.75
+    static let defaultMaxFileSizeBytes: Int = 50 * 1024 * 1024  // 50 MB
 
     @Published var isWatching: Bool = true
     @Published var volumes: [Volume] = []
@@ -43,6 +46,8 @@ final class AppState: ObservableObject {
     @Published var recentEvents: [DeletionEvent] = []
     @Published var lifetimeFilesDeleted: Int = 0
     @Published var lifetimeBytesFreed: Int = 0
+    @Published var moveToTrash: Bool = true
+    @Published var maxFileSizeBytes: Int = AppState.defaultMaxFileSizeBytes
 
     private var hasLoaded = false
 
@@ -53,6 +58,7 @@ final class AppState: ObservableObject {
         static let stats     = DirtyBits(rawValue: 1 << 2)
         static let rules     = DirtyBits(rawValue: 1 << 3)
         static let watching  = DirtyBits(rawValue: 1 << 4)
+        static let settings  = DirtyBits(rawValue: 1 << 5)
     }
     private var dirty: DirtyBits = []
     private var flushTimer: Timer?
@@ -69,6 +75,14 @@ final class AppState: ObservableObject {
 
         if defaults.object(forKey: Keys.isWatching) != nil {
             isWatching = defaults.bool(forKey: Keys.isWatching)
+        }
+        if defaults.object(forKey: Keys.moveToTrash) != nil {
+            moveToTrash = defaults.bool(forKey: Keys.moveToTrash)
+        }
+        if defaults.object(forKey: Keys.maxFileSizeBytes) != nil {
+            let stored = defaults.integer(forKey: Keys.maxFileSizeBytes)
+            // Treat zero/negative as "unbounded" by clamping to a very large value.
+            maxFileSizeBytes = stored > 0 ? stored : Int.max
         }
         lifetimeFilesDeleted = defaults.integer(forKey: Keys.lifetimeFilesDeleted)
         lifetimeBytesFreed   = defaults.integer(forKey: Keys.lifetimeBytesFreed)
@@ -128,6 +142,7 @@ final class AppState: ObservableObject {
     func persistEvents()        { markDirty(.events) }
     func persistLifetimeStats() { markDirty(.stats) }
     func persistIsWatching()    { markDirty(.watching) }
+    func persistSettings()      { markDirty(.settings) }
 
     /// Coalesce UserDefaults writes onto a debounce timer so high-frequency
     /// FSEvents-driven deletions don't generate a write storm. Calls that
@@ -163,6 +178,10 @@ final class AppState: ObservableObject {
         }
         if bits.contains(.watching) {
             defaults.set(isWatching, forKey: Keys.isWatching)
+        }
+        if bits.contains(.settings) {
+            defaults.set(moveToTrash, forKey: Keys.moveToTrash)
+            defaults.set(maxFileSizeBytes, forKey: Keys.maxFileSizeBytes)
         }
     }
 
@@ -268,6 +287,10 @@ final class AppState: ObservableObject {
     /// calling `record(_:)` per item: SwiftUI invalidates once, the dirty-bit
     /// timer is armed once, and `volumes` mutates once even when many events
     /// share the same volume.
+    ///
+    /// Lifetime stats only count events whose `status == .deleted`. Skipped
+    /// (e.g. oversize) events still appear in the Activity log so the user
+    /// can see what was held back.
     func recordBatch(_ events: [DeletionEvent]) {
         guard !events.isEmpty else { return }
 
@@ -275,27 +298,31 @@ final class AppState: ObservableObject {
         if recentEvents.count > Self.maxEvents {
             recentEvents.removeLast(recentEvents.count - Self.maxEvents)
         }
-        lifetimeFilesDeleted += events.count
-        let totalBytes = events.reduce(0) { $0 + $1.bytes }
-        lifetimeBytesFreed += totalBytes
 
-        var volumeTouched = false
-        var volumeDeltas: [String: (count: Int, bytes: Int)] = [:]
-        for event in events {
-            var d = volumeDeltas[event.volumeName] ?? (0, 0)
-            d.count += 1
-            d.bytes += event.bytes
-            volumeDeltas[event.volumeName] = d
-        }
-        for (volumeName, delta) in volumeDeltas {
-            if let index = volumes.firstIndex(where: { $0.name == volumeName }) {
-                volumes[index].lifetimeFilesDeleted += delta.count
-                volumes[index].lifetimeBytesFreed   += delta.bytes
-                volumeTouched = true
+        let deletedEvents = events.filter { $0.status == .deleted }
+        if !deletedEvents.isEmpty {
+            lifetimeFilesDeleted += deletedEvents.count
+            lifetimeBytesFreed   += deletedEvents.reduce(0) { $0 + $1.bytes }
+
+            var volumeTouched = false
+            var volumeDeltas: [String: (count: Int, bytes: Int)] = [:]
+            for event in deletedEvents {
+                var d = volumeDeltas[event.volumeName] ?? (0, 0)
+                d.count += 1
+                d.bytes += event.bytes
+                volumeDeltas[event.volumeName] = d
             }
+            for (volumeName, delta) in volumeDeltas {
+                if let index = volumes.firstIndex(where: { $0.name == volumeName }) {
+                    volumes[index].lifetimeFilesDeleted += delta.count
+                    volumes[index].lifetimeBytesFreed   += delta.bytes
+                    volumeTouched = true
+                }
+            }
+            if volumeTouched { markDirty(.volumes) }
+            markDirty(.stats)
         }
-        if volumeTouched { markDirty(.volumes) }
-        markDirty([.events, .stats])
+        markDirty(.events)
     }
 
     func clearActivity() {
