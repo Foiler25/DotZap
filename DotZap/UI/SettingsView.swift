@@ -19,6 +19,10 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject private var state = AppState.shared
     @State private var tab: Tab = .volumes
+    /// Owned here (not in ActivityView) so the query survives a tab switch.
+    /// SwiftUI tears down each tab's view on switch, but SettingsView itself
+    /// stays alive for the lifetime of the panel.
+    @State private var activitySearchQuery: String = ""
 
     enum Tab: String, CaseIterable, Identifiable {
         case volumes  = "Volumes"
@@ -40,7 +44,7 @@ struct SettingsView: View {
                 switch tab {
                 case .volumes:  VolumeListView()
                 case .rules:    RuleListView()
-                case .activity: ActivityView()
+                case .activity: ActivityView(searchQuery: $activitySearchQuery)
                 case .about:    AboutView()
                 }
             }
