@@ -250,5 +250,28 @@ This release tackles the root cause of those pesky `._*` AppleDouble files that 
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.2/DotZap-1.2.2.dmg" sparkle:edSignature="SpnRJsa5wjwUCRC5EosF6kujqKTCSx0V/wpUZHsz20BLT+68QNeegc/Q6QAzxm50n307UGLX4IF2Z6TzQfjQCQ==" length="1733252" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.2.3</title>
+      <pubDate>Mon, 27 Apr 2026 19:48:08 +0000</pubDate>
+      <sparkle:version>1.2.3</sparkle:version>
+      <sparkle:shortVersionString>1.2.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.2.3
+
+A small quality-of-life release: the Activity log is searchable now.
+
+## New
+
+- **Search in the Activity tab.** A search bar above the event list filters by **filename**, **rule name**, or **volume name** as you type. A clear button (×) resets the query, and an empty-state message tells you when nothing matches.
+- **Search persists across tabs.** Your search query sticks around when you flip over to Volumes, Rules, or About and back — no re-typing what you were just looking at.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.2.3.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.3/DotZap-1.2.3.dmg" sparkle:edSignature="MQfNQNadVDbn4pRlLCeZ2shUksCmdCxf1KD2XllE5IZJMU+hWSHV3G6eMe6+x0ckXhT6a0Dl2U8G8miSKaLiAw==" length="1757775" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
