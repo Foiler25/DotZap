@@ -142,5 +142,36 @@ A small but important bugfix and quality-of-life release.
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.1.2/DotZap-1.1.2.dmg" sparkle:edSignature="IcpB5YE8d0Qr18L2h8UWRWHpbsOqZZdjAM4U6Gx0mHHv8ucp19r09nCrVDe1yFbnddNk6PGVXBngK4cd2yK4Dw==" length="1641828" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.1.3</title>
+      <pubDate>Mon, 27 Apr 2026 00:43:26 +0000</pubDate>
+      <sparkle:version>1.1.3</sparkle:version>
+      <sparkle:shortVersionString>1.1.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.1.3
+
+A small visual polish release.
+
+## Fixed
+
+- **Rules tab spacing.** When the Custom Rules section was empty, the
+  "No custom rules yet." message sat flush against the panel edge instead
+  of aligning with the section header above it. The text now matches the
+  header's indent.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…*
+  in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.1.3.dmg`, open it, drag DotZap to
+  Applications. First launch: right-click → **Open**, then System
+  Settings → **Privacy & Security** → **Open Anyway**. Then grant Full
+  Disk Access via the banner in the Volumes tab.
+
+**Requires macOS 14 (Sonoma) or later.**
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.1.3/DotZap-1.1.3.dmg" sparkle:edSignature="eVGh+kOi+VNWLzKUSEeeLhvbG6mH6JzNLydFhG/dzveO2uwvX39npUUUBqqbEYxqW+nSRNJIr6HsT1Oc+P4KBQ==" length="1642221" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
