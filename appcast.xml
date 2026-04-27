@@ -226,5 +226,29 @@ A small but useful follow-up to 1.2.0: try out new (or aggressive) rules on a vo
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.1/DotZap-1.2.1.dmg" sparkle:edSignature="rsAHfc9RE13J9TfNF+SU1ZDtsvrPiDeAzPj6hYU4pujb7BlGcYcOf6le69Dzb9nPEBNo9MgmFL9ItYTJdx6/Dg==" length="1684625" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.2.2</title>
+      <pubDate>Mon, 27 Apr 2026 19:06:55 +0000</pubDate>
+      <sparkle:version>1.2.2</sparkle:version>
+      <sparkle:shortVersionString>1.2.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.2.2
+
+This release tackles the root cause of those pesky `._*` AppleDouble files that keep coming back on exFAT, FAT32, and NTFS volumes.
+
+## New
+
+- **Strip extended attributes (per volume).** Each volume row in the Volumes tab now has a *Strip extended attributes* action. It walks every file on that volume and clears all extended attributes — Finder color tags, comments, `com.apple.metadata:*`, and friends. macOS regenerates `._*` sidecars on non-APFS volumes whenever a file with xattrs is written, so removing the source xattrs is the durable fix. Sweeping the sidecars only treats the symptom.
+- **Confirmation before you commit.** The button opens an inline confirmation that spells out exactly what's removed (and warns that some apps — Lightroom, Photos export — store data in xattrs). Cancel or proceed with *Strip Now*.
+- **Live progress + summary in Activity.** While the strip runs, the volume row shows a spinner. When it finishes, the Activity log gets a purple "system event" entry summarizing how many files were modified (and any errors), so you have a record of the run.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.2.2.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.2/DotZap-1.2.2.dmg" sparkle:edSignature="SpnRJsa5wjwUCRC5EosF6kujqKTCSx0V/wpUZHsz20BLT+68QNeegc/Q6QAzxm50n307UGLX4IF2Z6TzQfjQCQ==" length="1733252" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
