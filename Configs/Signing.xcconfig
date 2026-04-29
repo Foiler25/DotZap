@@ -1,0 +1,15 @@
+// Signing.xcconfig — committed.
+//
+// Pulls in Signing.local.xcconfig (gitignored) for per-machine secrets.
+// The `?` makes the include optional, so a fork that hasn't created the
+// local file fails at codesign with "no DEVELOPMENT_TEAM" rather than
+// silently using somebody else's team ID.
+//
+// To set up:
+//   1. cp Configs/Signing.local.xcconfig.example Configs/Signing.local.xcconfig
+//   2. Edit DOTZAP_DEVELOPMENT_TEAM to your team ID (10-character string
+//      from https://developer.apple.com/account → Membership Details).
+#include? "Signing.local.xcconfig"
+
+DEVELOPMENT_TEAM = $(DOTZAP_DEVELOPMENT_TEAM)
+CODE_SIGN_STYLE = Automatic

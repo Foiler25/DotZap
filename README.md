@@ -6,14 +6,16 @@ Apple/Windows metadata junk (`._*`, `.DS_Store`, `.Spotlight-V100`, `Thumbs.db`,
 
 ## Build & Run
 
-1. Open `DotZap.xcodeproj` in Xcode 15 or later.
-2. Select the **DotZap** target → **Signing & Capabilities**:
-   - Set your **Team** (any free Apple ID works).
-   - Hardened Runtime is already enabled.
-   - The bundle id is `com.Loofa.DotZap` — change if you publish under a different identifier.
-3. Build & Run (⌘R).
-4. The first build is signed with `Sign to Run Locally` (`-`) by default so it works
-   without a team. Switch to `Automatic` signing once you've added your Team.
+1. Set your team ID:
+   ```sh
+   cp Configs/Signing.local.xcconfig.example Configs/Signing.local.xcconfig
+   # Edit DOTZAP_DEVELOPMENT_TEAM to your 10-character team ID
+   # (Apple Developer → Membership Details). A free Apple ID works.
+   ```
+   `Signing.local.xcconfig` is gitignored — your team ID stays local.
+2. Open `DotZap.xcodeproj` in Xcode 15 or later.
+3. Build & Run (⌘R). Hardened Runtime is already enabled; the bundle id is
+   `com.Loofa.DotZap` — change if you publish under a different identifier.
 
 > **macOS 14 (Sonoma) or later** is required — the project deployment target is 14.0.
 

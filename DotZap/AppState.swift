@@ -17,10 +17,17 @@
 import Foundation
 import Combine
 import AppKit
+import os.log
 
 @MainActor
 final class AppState: ObservableObject {
     static let shared = AppState()
+
+    private static let log = OSLog(subsystem: "com.Loofa.DotZap", category: "AppState")
+
+    /// Bumped when on-disk Codable shapes change in a backward-incompatible way.
+    /// Currently informational; future migrations key off this.
+    static let schemaVersion = 1
 
     private enum Keys {
         static let isWatching          = "DotZap.isWatching"
@@ -95,11 +102,34 @@ final class AppState: ObservableObject {
             defaults.set(true, forKey: Keys.didSeedBuiltIns)
             persistRules()
         } else {
+            // Migrate before merge so the built-in `Apple Double` rule's
+            // dedup key (now `._*|glob`) matches the new default and merge
+            // doesn't append a duplicate.
+            migrateLegacyPrefixRules()
             mergeMissingBuiltIns()
         }
 
         pruneStaleVolumes()
         markVolumesEjectedAtStartup()
+    }
+
+    /// 1.2.6 changed `prefix` matching from "strip all `*`s then hasPrefix"
+    /// to a literal hasPrefix. Any existing prefix rule containing `*` would
+    /// now match nothing (or only literal-`*` filenames), so promote them to
+    /// `.glob` — closest preservation of the original intent. Includes the
+    /// built-in `Apple Double` rule (`._*` + prefix → `._*` + glob).
+    private func migrateLegacyPrefixRules() {
+        var changed = false
+        for index in rules.indices {
+            if rules[index].matchType == .prefix,
+               rules[index].pattern.contains("*") {
+                rules[index].matchType = .glob
+                changed = true
+                os_log("migrated legacy prefix rule %{public}@ to glob",
+                       log: Self.log, type: .info, rules[index].pattern)
+            }
+        }
+        if changed { persistRules() }
     }
 
     private func mergeMissingBuiltIns() {
@@ -130,7 +160,19 @@ final class AppState: ObservableObject {
 
     private func decode<T: Decodable>(_ type: T.Type, key: String) -> T? {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(T.self, from: data)
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            // Surface schema breakage — silent failure used to wipe user data
+            // (rules, volumes, whitelists) on any incompatible model change.
+            // Sidecar the bad blob so future migration code (or a worried
+            // user) can recover it.
+            os_log("decode failed for key %{public}@: %{public}@",
+                   log: Self.log, type: .error, key, "\(error)")
+            let sidecar = "\(key).corrupted-\(Int(Date().timeIntervalSince1970))"
+            UserDefaults.standard.set(data, forKey: sidecar)
+            return nil
+        }
     }
 
     private func encode<T: Encodable>(_ value: T) -> Data? {
@@ -231,6 +273,10 @@ final class AppState: ObservableObject {
         volumes[index].isEjected = true
         volumes[index].lastSeenAt = Date()
         persistVolumes()
+        // Sweep older ejected entries on every disappearance — without this,
+        // the prune only ran at app launch, so a long-lived `.accessory`
+        // process would accumulate dead volumes indefinitely.
+        pruneStaleVolumes()
     }
 
     func setVolumeEnabled(mountPath: String, enabled: Bool) {
@@ -270,6 +316,9 @@ final class AppState: ObservableObject {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty, !cleanPattern.isEmpty else { return }
+        // Prefix mode is a literal hasPrefix check — `*` would silently mismatch
+        // user expectations. The UI also guards this, but defend in depth.
+        guard !(matchType == .prefix && cleanPattern.contains("*")) else { return }
         rules.append(CleanRule(name: cleanName, pattern: cleanPattern, matchType: matchType, isBuiltIn: false))
         persistRules()
     }
@@ -310,22 +359,30 @@ final class AppState: ObservableObject {
             lifetimeFilesDeleted += deletedEvents.count
             lifetimeBytesFreed   += deletedEvents.reduce(0) { $0 + $1.bytes }
 
-            var volumeTouched = false
-            var volumeDeltas: [String: (count: Int, bytes: Int)] = [:]
+            // Resolve each event to a volumes-array index up front, keyed by
+            // mountPath when present (events from 1.2.6+) or falling back to
+            // volumeName (events persisted by older versions). Aggregating by
+            // index avoids the name-collision bug where two drives both named
+            // "Untitled" had their stats merged onto the first one found.
+            var volumeDeltas: [Int: (count: Int, bytes: Int)] = [:]
             for event in deletedEvents {
-                var d = volumeDeltas[event.volumeName] ?? (0, 0)
+                let index: Int?
+                if !event.volumeMountPath.isEmpty {
+                    index = volumes.firstIndex { $0.mountPath == event.volumeMountPath }
+                } else {
+                    index = volumes.firstIndex { $0.name == event.volumeName }
+                }
+                guard let i = index else { continue }
+                var d = volumeDeltas[i] ?? (0, 0)
                 d.count += 1
                 d.bytes += event.bytes
-                volumeDeltas[event.volumeName] = d
+                volumeDeltas[i] = d
             }
-            for (volumeName, delta) in volumeDeltas {
-                if let index = volumes.firstIndex(where: { $0.name == volumeName }) {
-                    volumes[index].lifetimeFilesDeleted += delta.count
-                    volumes[index].lifetimeBytesFreed   += delta.bytes
-                    volumeTouched = true
-                }
+            for (index, delta) in volumeDeltas {
+                volumes[index].lifetimeFilesDeleted += delta.count
+                volumes[index].lifetimeBytesFreed   += delta.bytes
             }
-            if volumeTouched { markDirty(.volumes) }
+            if !volumeDeltas.isEmpty { markDirty(.volumes) }
             markDirty(.stats)
         }
         markDirty(.events)

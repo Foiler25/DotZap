@@ -124,6 +124,7 @@ struct StripXattrsIntent: AppIntent {
                 ruleName: summary,
                 bytes: 0,
                 volumeName: volumeName,
+                volumeMountPath: mountPath,
                 status: .xattrStripped
             )
             AppState.shared.recordBatch([event])

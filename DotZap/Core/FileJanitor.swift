@@ -32,15 +32,21 @@ enum FileJanitor {
                                                   maxFileSizeBytes: .max)
     }
 
-    /// Paths inside any of these directory names are owned by root (or another uid)
-    /// even on volumes where the rest of the tree is user-owned. We can't delete
-    /// inside them without privilege escalation, so don't try.
-    private static let protectedAncestors: [String] = [
-        "/.TemporaryItems/",
-        "/.Spotlight-V100/",
-        "/.Trashes/",
-        "/.fseventsd/",
-        "/.DocumentRevisions-V100/",
+    /// Paths whose path *components* include any of these directory names are
+    /// owned by root (or another uid) even on volumes where the rest of the
+    /// tree is user-owned. We can't delete inside them without privilege
+    /// escalation, so don't try.
+    ///
+    /// Compared component-wise (not as substrings) so that paths like
+    /// `/Volumes/USB/.Spotlight-V100-backup/x` aren't falsely protected, and
+    /// volumes mounted at `/Volumes/.Spotlight-V100/...` aren't catastrophically
+    /// treated as entirely protected.
+    private static let protectedAncestors: Set<String> = [
+        ".TemporaryItems",
+        ".Spotlight-V100",
+        ".Trashes",
+        ".fseventsd",
+        ".DocumentRevisions-V100",
     ]
 
     private static let skipLock = NSLock()
@@ -60,23 +66,28 @@ enum FileJanitor {
         if isSkipped(path) { return nil }
         if volume.whitelist.contains(where: { fnmatch($0, path, 0) == 0 }) { return nil }
 
-        let size: Int
-        if let attrs = try? fm.attributesOfItem(atPath: path),
-           let n = attrs[.size] as? NSNumber {
-            size = n.intValue
-        } else {
-            size = 0
+        // lstat (does NOT follow symlinks) — used both to detect symlinks and
+        // to read size without invoking Foundation's symlink-following
+        // attributesOfItem(atPath:).
+        var statBuf = stat()
+        guard lstat(path, &statBuf) == 0 else {
+            // Path vanished between fileExists and lstat. Quiet exit.
+            return nil
         }
+        let isSymlink = (statBuf.st_mode & S_IFMT) == S_IFLNK
+        let size: Int = isSymlink ? 0 : Int(statBuf.st_size)
 
         // Size cap — emit a skipped event so the user can see what was held
         // back, but don't actually delete or trash. Lifetime stats ignore
-        // skipped events (filtered in AppState.recordBatch).
-        if size > settings.maxFileSizeBytes {
+        // skipped events (filtered in AppState.recordBatch). Symlinks are
+        // tiny inodes; the cap doesn't apply.
+        if !isSymlink && size > settings.maxFileSizeBytes {
             return DeletionEvent(
                 path: path,
                 ruleName: rule.name,
                 bytes: size,
                 volumeName: volume.name,
+                volumeMountPath: volume.mountPath,
                 status: .skippedOversize
             )
         }
@@ -89,8 +100,56 @@ enum FileJanitor {
                 ruleName: rule.name,
                 bytes: size,
                 volumeName: volume.name,
+                volumeMountPath: volume.mountPath,
                 status: .dryRun
             )
+        }
+
+        // Symlinks: unlink the link itself, never resolve to its target.
+        // FileManager.trashItem and removeItem follow symlinks; with FDA we
+        // would otherwise trash an attacker-chosen target.
+        if isSymlink {
+            if unlink(path) == 0 {
+                return DeletionEvent(
+                    path: path,
+                    ruleName: rule.name,
+                    bytes: 0,
+                    volumeName: volume.name,
+                    volumeMountPath: volume.mountPath,
+                    status: .deleted
+                )
+            }
+            let err = errno
+            if err == EACCES || err == EPERM {
+                markSkipped(path)
+                os_log("skipping protected symlink: %{public}@",
+                       log: log, type: .info, path)
+            } else {
+                os_log("unlink failed for symlink %{public}@: errno=%d",
+                       log: log, type: .error, path, err)
+            }
+            return nil
+        }
+
+        // Regular file: resolve and verify the resolved path is still inside
+        // the watched volume. This narrows the symlink-swap TOCTOU window
+        // without fully closing it (a fully race-free fix would require
+        // openat(O_NOFOLLOW)+funlinkat, which Foundation doesn't expose).
+        guard let resolvedC = realpath(path, nil) else {
+            os_log("realpath failed for %{public}@: errno=%d",
+                   log: log, type: .error, path, errno)
+            return nil
+        }
+        let resolvedPath = String(cString: resolvedC)
+        free(resolvedC)
+        let mountPrefix = volume.mountPath.hasSuffix("/")
+            ? volume.mountPath
+            : volume.mountPath + "/"
+        guard resolvedPath == volume.mountPath
+              || resolvedPath.hasPrefix(mountPrefix) else {
+            os_log("refusing delete: %{public}@ resolved to %{public}@ outside volume %{public}@",
+                   log: log, type: .error, path, resolvedPath, volume.mountPath)
+            return nil
         }
 
         do {
@@ -105,6 +164,7 @@ enum FileJanitor {
                 ruleName: rule.name,
                 bytes: size,
                 volumeName: volume.name,
+                volumeMountPath: volume.mountPath,
                 status: .deleted
             )
         } catch let error as NSError {
@@ -128,10 +188,8 @@ enum FileJanitor {
     // MARK: - Helpers
 
     private static func isInProtectedAncestor(_ path: String) -> Bool {
-        for needle in protectedAncestors where path.contains(needle) {
-            return true
-        }
-        return false
+        let components = (path as NSString).pathComponents
+        return components.contains(where: protectedAncestors.contains)
     }
 
     private static func isSkipped(_ path: String) -> Bool {

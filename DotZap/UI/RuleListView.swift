@@ -93,6 +93,10 @@ struct RuleListView: View {
         }
     }
 
+    private var prefixHasStar: Bool {
+        newMatchType == .prefix && newPattern.contains("*")
+    }
+
     private var addForm: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("New Custom Rule")
@@ -116,6 +120,12 @@ struct RuleListView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
 
+            if prefixHasStar {
+                Text("Prefix matches literally — use Glob for `*` wildcards.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.orange)
+            }
+
             HStack {
                 Spacer()
                 Button("Cancel") {
@@ -135,7 +145,8 @@ struct RuleListView: View {
                 }
                 .buttonStyle(GlassButtonStyle(prominent: true))
                 .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty
-                       || newPattern.trimmingCharacters(in: .whitespaces).isEmpty)
+                       || newPattern.trimmingCharacters(in: .whitespaces).isEmpty
+                       || prefixHasStar)
             }
         }
         .padding(10)

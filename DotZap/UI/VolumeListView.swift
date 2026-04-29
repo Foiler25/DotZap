@@ -355,6 +355,7 @@ private struct VolumeRow: View {
                     ruleName: summary,
                     bytes: 0,
                     volumeName: volumeName,
+                    volumeMountPath: mountPath,
                     status: .xattrStripped
                 )
                 AppState.shared.recordBatch([event])

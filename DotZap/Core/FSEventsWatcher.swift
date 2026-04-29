@@ -42,11 +42,23 @@ final class FSEventsWatcher {
     func start() {
         guard !isStarted else { return }
 
+        // passRetained + matching retain/release callbacks: the stream owns a
+        // +1 reference for its lifetime, and CF balances it on every internal
+        // copy. This makes deinit-during-callback safe — previously the
+        // stream held a raw pointer with no lifecycle hooks, and `stop()`
+        // could race with an in-flight callback dispatched on the queue.
         var context = FSEventStreamContext(
             version: 0,
-            info: Unmanaged.passUnretained(self).toOpaque(),
-            retain: nil,
-            release: nil,
+            info: Unmanaged.passRetained(self).toOpaque(),
+            retain: { ptr in
+                guard let ptr else { return nil }
+                _ = Unmanaged<FSEventsWatcher>.fromOpaque(ptr).retain()
+                return ptr
+            },
+            release: { ptr in
+                guard let ptr else { return }
+                Unmanaged<FSEventsWatcher>.fromOpaque(ptr).release()
+            },
             copyDescription: nil
         )
 

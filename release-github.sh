@@ -199,9 +199,8 @@ RELEASE_NOTES_BODY="$(cat "$NOTES_FILE")"
 
 export APPCAST VERSION PUB_DATE ASSET_URL SPARKLE_SIGNATURE_LINE RELEASE_NOTES_BODY
 python3 - <<'PY'
-import os, pathlib
+import os, pathlib, fcntl, tempfile
 path = pathlib.Path(os.environ["APPCAST"])
-text = path.read_text()
 item = f"""    <item>
       <title>DotZap {os.environ['VERSION']}</title>
       <pubDate>{os.environ['PUB_DATE']}</pubDate>
@@ -214,7 +213,31 @@ item = f"""    <item>
       <enclosure url="{os.environ['ASSET_URL']}" {os.environ['SPARKLE_SIGNATURE_LINE']} type="application/octet-stream" />
     </item>
 """
-path.write_text(text.replace("</channel>", item + "  </channel>", 1))
+
+# Atomic read-modify-write under flock — protects against (1) concurrent
+# release jobs (e.g. main + hotfix branch publishing simultaneously)
+# silently overwriting each other's appcast entries, and (2) a crash
+# mid-write leaving a half-written file. The os.replace step is atomic
+# at the filesystem level on POSIX.
+with open(path, "r+") as f:
+    fcntl.flock(f, fcntl.LOCK_EX)
+    text = f.read()
+    new_text = text.replace("</channel>", item + "  </channel>", 1)
+    if new_text == text:
+        raise SystemExit(
+            "error: </channel> marker not found in appcast.xml; refusing to write")
+    tmp = tempfile.NamedTemporaryFile(
+        "w", dir=str(path.parent), prefix=".appcast.", suffix=".tmp", delete=False)
+    try:
+        tmp.write(new_text)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp.close()
+        os.replace(tmp.name, path)
+    except Exception:
+        try: os.unlink(tmp.name)
+        except FileNotFoundError: pass
+        raise
 PY
 
 git add "$APPCAST"

@@ -35,8 +35,13 @@ enum RuleEngine {
         case .exact:
             return filename == rule.pattern
         case .prefix:
-            let prefix = rule.pattern.replacingOccurrences(of: "*", with: "")
-            return !prefix.isEmpty && filename.hasPrefix(prefix)
+            // Literal hasPrefix. Patterns containing `*` are rejected at the
+            // creation site (see AppState.addCustomRule); legacy rules are
+            // auto-migrated to .glob in loadPersisted. The previous
+            // implementation stripped all `*`s, which silently turned
+            // `foo*bar` into hasPrefix("foobar") — confusingly different
+            // from the glob meaning.
+            return !rule.pattern.isEmpty && filename.hasPrefix(rule.pattern)
         case .glob:
             return fnmatch(rule.pattern, filename, 0) == 0
         }

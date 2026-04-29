@@ -10,6 +10,9 @@ RELEASE_NOTES.md
 # Sparkle private key (NEVER commit)
 keyfile.txt
 
+# Per-machine signing config (team ID lives here, not in pbxproj)
+Configs/Signing.local.xcconfig
+
 # macOS / Xcode noise
 .DS_Store
 xcuserdata/

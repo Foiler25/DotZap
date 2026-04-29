@@ -55,7 +55,7 @@ struct CleanRule: Codable, Identifiable, Hashable {
     }
 
     static let builtInDefaults: [CleanRule] = [
-        CleanRule(name: "Apple Double",     pattern: "._*",             matchType: .prefix, isBuiltIn: true),
+        CleanRule(name: "Apple Double",     pattern: "._*",             matchType: .glob,   isBuiltIn: true),
         CleanRule(name: "DS Store",         pattern: ".DS_Store",       matchType: .exact,  isBuiltIn: true),
         CleanRule(name: "Spotlight Index",  pattern: ".Spotlight-V100", matchType: .exact,  isBuiltIn: true),
         CleanRule(name: "Volume Trash",     pattern: ".Trashes",        matchType: .exact,  isBuiltIn: true),

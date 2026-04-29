@@ -66,15 +66,17 @@ struct FullDiskAccessBanner: View {
 
 enum FullDiskAccessProbe {
     static func hasFullDiskAccess() -> Bool {
+        // Conservative: only `fd >= 0` counts as granted. Previously every
+        // non-EACCES errno was treated as success, which silently disabled the
+        // banner if Apple ever moved TCC.db (e.g. ENOENT) or returned a
+        // different errno from a future macOS sandbox restriction.
         let probePath = "/Library/Application Support/com.apple.TCC/TCC.db"
         let fd = open(probePath, O_RDONLY)
         if fd >= 0 {
             close(fd)
             return true
         }
-        // EACCES means file exists but we don't have permission → FDA missing.
-        // ENOENT (file missing) is unusual; treat as granted to avoid false banner.
-        return errno != EACCES
+        return false
     }
 
     static func openSettings() {

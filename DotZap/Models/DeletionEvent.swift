@@ -29,6 +29,11 @@ struct DeletionEvent: Codable, Identifiable, Hashable {
     var ruleName: String
     var bytes: Int
     var volumeName: String
+    /// Mount path of the volume this event came from. Used as the stable key
+    /// for per-volume stat attribution — `volumeName` collides between
+    /// drives that share a name (e.g. two USB sticks both labeled "Untitled").
+    /// Empty string in events persisted before 1.2.6 (back-compat decoder).
+    var volumeMountPath: String
     var timestamp: Date
     var status: Status
 
@@ -42,6 +47,7 @@ struct DeletionEvent: Codable, Identifiable, Hashable {
         ruleName: String,
         bytes: Int,
         volumeName: String,
+        volumeMountPath: String = "",
         timestamp: Date = Date(),
         status: Status = .deleted
     ) {
@@ -50,20 +56,23 @@ struct DeletionEvent: Codable, Identifiable, Hashable {
         self.ruleName = ruleName
         self.bytes = bytes
         self.volumeName = volumeName
+        self.volumeMountPath = volumeMountPath
         self.timestamp = timestamp
         self.status = status
     }
 
-    // Decoder with back-compat default for `status` so events persisted by
-    // 1.1.x (no status field) still decode after upgrade.
+    // Decoder with back-compat defaults so events persisted by older
+    // versions still load: `status` was added in 1.2.0, `volumeMountPath`
+    // in 1.2.6.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        self.id         = try c.decode(UUID.self,   forKey: .id)
-        self.path       = try c.decode(String.self, forKey: .path)
-        self.ruleName   = try c.decode(String.self, forKey: .ruleName)
-        self.bytes      = try c.decode(Int.self,    forKey: .bytes)
-        self.volumeName = try c.decode(String.self, forKey: .volumeName)
-        self.timestamp  = try c.decode(Date.self,   forKey: .timestamp)
-        self.status     = try c.decodeIfPresent(Status.self, forKey: .status) ?? .deleted
+        self.id              = try c.decode(UUID.self,   forKey: .id)
+        self.path            = try c.decode(String.self, forKey: .path)
+        self.ruleName        = try c.decode(String.self, forKey: .ruleName)
+        self.bytes           = try c.decode(Int.self,    forKey: .bytes)
+        self.volumeName      = try c.decode(String.self, forKey: .volumeName)
+        self.volumeMountPath = try c.decodeIfPresent(String.self, forKey: .volumeMountPath) ?? ""
+        self.timestamp       = try c.decode(Date.self,   forKey: .timestamp)
+        self.status          = try c.decodeIfPresent(Status.self, forKey: .status) ?? .deleted
     }
 }

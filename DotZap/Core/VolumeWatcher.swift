@@ -27,6 +27,35 @@ final class VolumeWatcher {
 
     private init() {}
 
+    // VolumeWatcher is a singleton (`shared`) whose lifetime is the whole app,
+    // so this deinit does not run in normal lifecycle. It exists as hygiene
+    // for any future refactor that introduces explicit teardown — without it,
+    // a recreated watcher would leave the previous session's callbacks
+    // registered and dispatching to a half-deallocated instance.
+    //
+    // Note: DiskArbitration's C API does not expose retain/release callbacks
+    // (unlike FSEventStreamContext), so the `passUnretained` below is *not*
+    // upgraded to `passRetained` — there's no symmetric balance point.
+    // Singleton lifetime makes this safe in practice today.
+    deinit {
+        if let session {
+            DASessionSetDispatchQueue(session, nil)
+            DAUnregisterCallback(
+                session,
+                unsafeBitCast(Self.appearedCallback, to: UnsafeMutableRawPointer.self),
+                nil
+            )
+            DAUnregisterCallback(
+                session,
+                unsafeBitCast(Self.disappearedCallback, to: UnsafeMutableRawPointer.self),
+                nil
+            )
+        }
+        for (_, watcher) in watchers {
+            watcher.stop()
+        }
+    }
+
     // MARK: - Lifecycle
 
     func start() {
@@ -39,6 +68,7 @@ final class VolumeWatcher {
 
         DASessionScheduleWithRunLoop(newSession, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
 
+        // See deinit comment for why this stays passUnretained.
         let context = Unmanaged.passUnretained(self).toOpaque()
         DARegisterDiskAppearedCallback(newSession, nil, Self.appearedCallback, context)
         DARegisterDiskDisappearedCallback(newSession, nil, Self.disappearedCallback, context)
@@ -88,7 +118,7 @@ final class VolumeWatcher {
 
     // MARK: - Callback handling
 
-    private static let appearedCallback: DADiskAppearedCallback = { disk, context in
+    private nonisolated static let appearedCallback: DADiskAppearedCallback = { disk, context in
         guard let context else { return }
         let me = Unmanaged<VolumeWatcher>.fromOpaque(context).takeUnretainedValue()
         // DA callbacks fire on the run loop thread (main, since we scheduled there).
@@ -97,7 +127,7 @@ final class VolumeWatcher {
         }
     }
 
-    private static let disappearedCallback: DADiskDisappearedCallback = { disk, context in
+    private nonisolated static let disappearedCallback: DADiskDisappearedCallback = { disk, context in
         guard let context else { return }
         let me = Unmanaged<VolumeWatcher>.fromOpaque(context).takeUnretainedValue()
         MainActor.assumeIsolated {

@@ -1,0 +1,10 @@
+// Signing.local.xcconfig.example — committed template.
+//
+// Copy to Signing.local.xcconfig (gitignored) and set your team ID.
+// Find it at https://developer.apple.com/account → Membership Details.
+//
+// A free Apple ID team ID also works; the project signs with the
+// Apple Development identity on dev builds and ad-hoc (`-`) signature
+// on the release DMG.
+
+DOTZAP_DEVELOPMENT_TEAM = REPLACE_WITH_YOUR_TEAM_ID
