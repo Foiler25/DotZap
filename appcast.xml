@@ -331,5 +331,37 @@ This release brings DotZap to Shortcuts, Siri, and Spotlight — you can now dri
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.5/DotZap-1.2.5.dmg" sparkle:edSignature="twW31h166G+4+hD5kBc5mR0/p3iWC5x3NmVhPWelRCHB7OInqjhdptaOYerB+aC4aUdwqdzy4klB7Uj+PY/SCA==" length="1829255" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.2.6</title>
+      <pubDate>Wed, 29 Apr 2026 18:09:14 +0000</pubDate>
+      <sparkle:version>1.2.6</sparkle:version>
+      <sparkle:shortVersionString>1.2.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# DotZap 1.2.6
+
+A safety release focused on hardening how DotZap decides what to delete, plus a handful of correctness fixes for stats, persistence, and the Full Disk Access banner.
+
+## Fixed
+
+- **Symlinks are now removed as themselves, never followed to their target.** If a path matching a rule was actually a symbolic link (e.g. someone placed `._foo` as a symlink pointing into `~/Documents`), DotZap previously trashed or removed the *target* of the link — which could be anywhere on disk. The fix: symlinks are detected up front and unlinked directly, never resolved. Regular files also get a second containment check that confirms their resolved path is still inside the watched volume before deletion. With Full Disk Access granted, this closes a real footgun on shared or untrusted drives.
+- **Protected system folders are matched by directory name, not substring.** Paths like `/Volumes/USB/.Spotlight-V100-backup/...` were being incorrectly *skipped*, and a volume mounted at a path containing `/.Spotlight-V100/` would have had its entire contents treated as protected. Now only paths with an exact `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `.TemporaryItems`, or `.DocumentRevisions-V100` directory component are skipped — which is what was meant all along.
+- **Per-drive stats no longer collide between same-named volumes.** If you had two USB sticks both labeled *Untitled* (or any other shared name — Apple's default for unformatted disks is a common offender), deletions on the second drive were being attributed to the first. Stats now key off the mount path, so each drive's lifetime totals stay independent.
+- **Full Disk Access banner is more reliable.** The probe used to treat unusual filesystem errors as if FDA were granted, which silently hid the banner on machines that actually didn't have access. It's now strictly conservative — only a successful read counts as granted, so the banner reliably appears whenever access is missing.
+- **Persistence errors no longer silently wipe saved state.** If DotZap can't decode its stored rules, volumes, or whitelists (corrupted preferences, partial write, schema mismatch), it now logs the failure to the system console and keeps the original bad blob under a `.corrupted-<timestamp>` key — rather than resetting to an empty list with no trace.
+
+## Changed
+
+- **The custom-rule editor catches a confusing pattern.** When the **Prefix** match type is selected with a `*` in the pattern, the form now shows an inline warning and disables Save. Prefix is a literal *starts-with* check, so `foo*bar` doesn't mean what it would in **Glob** mode. Any existing rules in this state — including the built-in **Apple Double** rule (`._*`) — are automatically promoted to **Glob** on first launch so they keep matching what you intended.
+- **Ejected drives get pruned whenever any drive disappears**, not only at app launch. Long-running installs that never quit will no longer accumulate stale Volumes-tab entries for drives that haven't been seen in over a week.
+- **Tightened the bundled entitlements.** Removed a sandbox-only entitlement that wasn't doing anything (DotZap runs outside the sandbox by design so it can watch every mount). No behavior change.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.2.6.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.6/DotZap-1.2.6.dmg" sparkle:edSignature="0yKb/BK4b6FgQBRpUkKlLDJZLXBT5FDzDuBxOkfr+/9LlcdA7mxREJHOmcIJEUbZILbbiv7s+DHT7OCTaE7MCw==" length="1832621" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
