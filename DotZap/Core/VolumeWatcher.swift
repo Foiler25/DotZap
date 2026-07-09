@@ -354,6 +354,11 @@ final class VolumeWatcher {
         if path.contains("/System/") { return true }
         if path.hasPrefix("/private/") { return true }
         if !info.isWritable { return true }
+        // create-dmg / dmgbuild staging volumes. Their whole point is the
+        // Finder layout stored in .DS_Store — auto-enabling one and deleting
+        // that file deadlocks the packaging tool, which polls for it to
+        // appear (DotZap's own DMG build trips this while DotZap is running).
+        if path.hasPrefix("/Volumes/dmg.") { return true }
         return false
     }
 }
