@@ -56,6 +56,13 @@ final class AppState: ObservableObject {
     @Published var moveToTrash: Bool = true
     @Published var maxFileSizeBytes: Int = AppState.defaultMaxFileSizeBytes
 
+    /// Mount paths with a cleanup scan / xattr strip currently in flight.
+    /// Runtime-only (never persisted) — the work runs in detached tasks that
+    /// outlive any particular view, so progress indicators must live here
+    /// rather than in view @State, which dies on panel close or tab switch.
+    @Published var scanningVolumes: Set<String> = []
+    @Published var strippingVolumes: Set<String> = []
+
     private var hasLoaded = false
 
     private struct DirtyBits: OptionSet {

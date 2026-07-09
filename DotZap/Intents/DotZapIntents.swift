@@ -103,6 +103,16 @@ struct StripXattrsIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let mountPath = volume.id
         let volumeName = volume.name
+        // Mirror the UI path: publish in-flight state so the volume row's
+        // spinner shows for strips started from Shortcuts too.
+        await MainActor.run {
+            AppState.shared.strippingVolumes.insert(mountPath)
+        }
+        defer {
+            Task { @MainActor in
+                AppState.shared.strippingVolumes.remove(mountPath)
+            }
+        }
         let result = await Task.detached(priority: .userInitiated) {
             XattrStripper.strip(at: mountPath)
         }.value

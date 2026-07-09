@@ -106,7 +106,17 @@ private struct VolumeRow: View {
     @State private var expanded = false
     @State private var newWhitelist: String = ""
     @State private var pendingStripConfirm: Bool = false
-    @State private var isStripping: Bool = false
+
+    /// In-flight work lives in AppState (not view @State): the detached
+    /// tasks doing the actual scanning/stripping outlive this row, which is
+    /// torn down whenever the panel closes or the user switches tabs.
+    private var isStripping: Bool {
+        state.strippingVolumes.contains(volume.mountPath)
+    }
+
+    private var isScanning: Bool {
+        state.scanningVolumes.contains(volume.mountPath)
+    }
 
     private var enabledBinding: Binding<Bool> {
         Binding(
@@ -179,6 +189,12 @@ private struct VolumeRow: View {
                 .background(
                     Capsule().fill(Color.secondary.opacity(0.12))
                 )
+
+            if isScanning || isStripping {
+                ProgressView()
+                    .controlSize(.small)
+                    .help(isStripping ? "Stripping extended attributes…" : "Scanning…")
+            }
 
             Toggle("", isOn: enabledBinding)
                 .toggleStyle(.switch)
@@ -270,11 +286,17 @@ private struct VolumeRow: View {
 
             HStack {
                 Spacer()
+                if isScanning {
+                    ProgressView().controlSize(.small)
+                    Text("Scanning… results appear in Activity")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                }
                 Button("Clean Now") {
                     VolumeWatcher.shared.cleanNow(mountPath: volume.mountPath)
                 }
                 .buttonStyle(GlassButtonStyle(prominent: true))
-                .disabled(volume.isEjected)
+                .disabled(volume.isEjected || isScanning)
             }
 
             xattrStripSection
@@ -421,7 +443,8 @@ private struct VolumeRow: View {
     private func runStrip() {
         let mountPath = volume.mountPath
         let volumeName = volume.name
-        isStripping = true
+        guard !state.strippingVolumes.contains(mountPath) else { return }
+        state.strippingVolumes.insert(mountPath)
         Task.detached(priority: .userInitiated) {
             let result = XattrStripper.strip(at: mountPath)
             await MainActor.run {
@@ -444,7 +467,7 @@ private struct VolumeRow: View {
                     status: .xattrStripped
                 )
                 AppState.shared.recordBatch([event])
-                isStripping = false
+                AppState.shared.strippingVolumes.remove(mountPath)
             }
         }
     }

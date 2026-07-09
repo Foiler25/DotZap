@@ -100,6 +100,11 @@ final class FSEventsWatcher {
         Task { @MainActor in
             let state = AppState.shared
             guard let volume = state.volumes.first(where: { $0.mountPath == mountPath }) else { return }
+            // One scan per volume at a time. Long crawls (network mounts)
+            // could otherwise stack up when an interval timer fires or the
+            // user mashes Clean Now while a scan is still running.
+            guard !state.scanningVolumes.contains(mountPath) else { return }
+            state.scanningVolumes.insert(mountPath)
             let rules = state.rules
             let settings = FileJanitor.DeletionSettings(
                 moveToTrash: state.moveToTrash,
@@ -108,6 +113,9 @@ final class FSEventsWatcher {
 
             Task.detached(priority: .userInitiated) {
                 Self.scan(mountPath: mountPath, rules: rules, volume: volume, settings: settings)
+                await MainActor.run {
+                    AppState.shared.scanningVolumes.remove(mountPath)
+                }
             }
         }
     }
