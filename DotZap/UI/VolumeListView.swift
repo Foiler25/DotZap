@@ -299,6 +299,25 @@ private struct VolumeRow: View {
                 .disabled(volume.isEjected || isScanning)
             }
 
+            if volume.isEjected {
+                Divider().overlay(Color.white.opacity(0.08))
+                HStack {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Not mounted")
+                            .font(.system(size: 11))
+                        Text("Remove this volume from the list, including its whitelist, stats, and cleanup settings. It reappears with defaults if mounted again.")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Button("Remove") {
+                        state.removeVolume(mountPath: volume.mountPath)
+                    }
+                    .buttonStyle(GlassButtonStyle())
+                }
+            }
+
             xattrStripSection
         }
         .padding(.horizontal, 10)

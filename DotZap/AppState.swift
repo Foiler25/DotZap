@@ -117,7 +117,17 @@ final class AppState: ObservableObject {
         }
 
         pruneStaleVolumes()
+        pruneTransientVolumes()
         markVolumesEjectedAtStartup()
+    }
+
+    /// Drop create-dmg staging mounts registered by 1.3.0/1.3.1 (which
+    /// didn't skip them yet). They're throwaway by construction — no point
+    /// carrying them as ejected entries for a week.
+    private func pruneTransientVolumes() {
+        let before = volumes.count
+        volumes.removeAll { $0.mountPath.hasPrefix("/Volumes/dmg.") }
+        if volumes.count != before { persistVolumes() }
     }
 
     /// 1.2.6 changed `prefix` matching from "strip all `*`s then hasPrefix"
@@ -326,6 +336,16 @@ final class AppState: ObservableObject {
         if volumes[index].cleanupMode == .interval {
             VolumeWatcher.shared.restartMonitoring(mountPath: mountPath)
         }
+    }
+
+    /// Forget an ejected volume: drops it (and its whitelist, stats, and
+    /// cleanup settings) from the list. Mounted volumes can't be removed —
+    /// they'd just re-register on the next mount event anyway.
+    func removeVolume(mountPath: String) {
+        guard let index = volumes.firstIndex(where: { $0.mountPath == mountPath }),
+              volumes[index].isEjected else { return }
+        volumes.remove(at: index)
+        persistVolumes()
     }
 
     func setVolumeDryRun(mountPath: String, dryRun: Bool) {

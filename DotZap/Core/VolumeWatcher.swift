@@ -295,6 +295,7 @@ final class VolumeWatcher {
         let filesystem: String
         let isWritable: Bool
         let isNetwork: Bool
+        let isBrowsable: Bool
     }
 
     private func describe(disk: DADisk) -> DiskInfo? {
@@ -310,15 +311,22 @@ final class VolumeWatcher {
         let fallbackName = pathURL.lastPathComponent.isEmpty ? "Volume" : pathURL.lastPathComponent
         let name = (desc[kDADiskDescriptionVolumeNameKey] as? String) ?? fallbackName
         let filesystem = (desc[kDADiskDescriptionVolumeKindKey] as? String) ?? "Unknown"
-        let isWritable = (desc[kDADiskDescriptionMediaWritableKey] as? Bool) ?? true
         let isNetwork = (desc[kDADiskDescriptionVolumeNetworkKey] as? Bool) ?? false
+
+        // MediaWritable describes the *device*, which reports writable even
+        // when the mounted filesystem is read-only (compressed installer
+        // DMGs attach that way — v1.3.1 registered its own installer image
+        // because of this). Check the mount itself as well.
+        let mediaWritable = (desc[kDADiskDescriptionMediaWritableKey] as? Bool) ?? true
+        let traits = volumeTraits(mountPath: mountPath)
 
         return DiskInfo(
             mountPath: mountPath,
             name: name,
             filesystem: filesystem.uppercased(),
-            isWritable: isWritable,
-            isNetwork: isNetwork
+            isWritable: mediaWritable && !traits.fsReadOnly,
+            isNetwork: isNetwork,
+            isBrowsable: traits.browsable
         )
     }
 
@@ -328,7 +336,7 @@ final class VolumeWatcher {
         let mountPath = url.path
         guard !mountPath.isEmpty else { return nil }
 
-        let keys: Set<URLResourceKey> = [.volumeNameKey, .volumeIsLocalKey, .volumeIsReadOnlyKey]
+        let keys: Set<URLResourceKey> = [.volumeNameKey, .volumeIsLocalKey]
         guard let values = try? url.resourceValues(forKeys: keys) else { return nil }
 
         var fs = statfs()
@@ -338,14 +346,35 @@ final class VolumeWatcher {
             }
             : "Unknown"
 
+        let traits = volumeTraits(mountPath: mountPath)
         let fallbackName = url.lastPathComponent.isEmpty ? "Volume" : url.lastPathComponent
         return DiskInfo(
             mountPath: mountPath,
             name: values.volumeName ?? fallbackName,
             filesystem: filesystem.uppercased(),
-            isWritable: !(values.volumeIsReadOnly ?? false),
-            isNetwork: !(values.volumeIsLocal ?? true)
+            isWritable: !traits.fsReadOnly,
+            isNetwork: !(values.volumeIsLocal ?? true),
+            isBrowsable: traits.browsable
         )
+    }
+
+    /// Filesystem-level traits shared by both discovery paths.
+    ///
+    /// `fsReadOnly` comes from the mount flags (MNT_RDONLY), which is what
+    /// actually determines whether we could delete anything. `browsable`
+    /// is false for macOS system helper volumes (Recovery, Preboot, VM,
+    /// Update…) that the OS mounts under /Volumes but hides from Finder —
+    /// none of them are cleanup targets.
+    private func volumeTraits(mountPath: String) -> (fsReadOnly: Bool, browsable: Bool) {
+        var fs = statfs()
+        let fsReadOnly = statfs(mountPath, &fs) == 0
+            && (fs.f_flags & UInt32(MNT_RDONLY)) != 0
+
+        let url = URL(fileURLWithPath: mountPath)
+        let browsable = (try? url.resourceValues(forKeys: [.volumeIsBrowsableKey]))?
+            .volumeIsBrowsable ?? true
+
+        return (fsReadOnly, browsable)
     }
 
     private func shouldSkip(info: DiskInfo) -> Bool {
@@ -354,6 +383,7 @@ final class VolumeWatcher {
         if path.contains("/System/") { return true }
         if path.hasPrefix("/private/") { return true }
         if !info.isWritable { return true }
+        if !info.isBrowsable { return true }
         // create-dmg / dmgbuild staging volumes. Their whole point is the
         // Finder layout stored in .DS_Store — auto-enabling one and deleting
         // that file deadlocks the packaging tool, which polls for it to
