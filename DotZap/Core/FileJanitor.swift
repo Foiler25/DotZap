@@ -154,8 +154,18 @@ enum FileJanitor {
 
         do {
             if settings.moveToTrash {
-                try fm.trashItem(at: URL(fileURLWithPath: path),
-                                 resultingItemURL: nil)
+                do {
+                    try fm.trashItem(at: URL(fileURLWithPath: path),
+                                     resultingItemURL: nil)
+                } catch let error as NSError
+                    where error.domain == NSCocoaErrorDomain
+                       && error.code == CocoaError.featureUnsupported.rawValue {
+                    // Network shares (and some FAT volumes) have no per-user
+                    // .Trashes, so trashItem always throws 3328 there. Finder
+                    // deletes immediately on such volumes; do the same instead
+                    // of silently failing on every file.
+                    try fm.removeItem(atPath: path)
+                }
             } else {
                 try fm.removeItem(atPath: path)
             }

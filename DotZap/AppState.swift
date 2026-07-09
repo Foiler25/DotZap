@@ -285,6 +285,13 @@ final class AppState: ObservableObject {
         persistVolumes()
         if enabled {
             VolumeWatcher.shared.startMonitoring(mountPath: mountPath)
+            // An interval timer's first fire is a full interval away and an
+            // FSEvents stream only sees *new* files — without this kick, a
+            // freshly enabled volume looks inert (junk already on it stays
+            // put for up to the whole interval).
+            if isWatching, volumes[index].cleanupMode != .manual {
+                VolumeWatcher.shared.cleanNow(mountPath: mountPath)
+            }
         } else {
             VolumeWatcher.shared.stopMonitoring(mountPath: mountPath)
         }
@@ -296,6 +303,11 @@ final class AppState: ObservableObject {
         volumes[index].cleanupMode = mode
         persistVolumes()
         VolumeWatcher.shared.restartMonitoring(mountPath: mountPath)
+        // Same reasoning as setVolumeEnabled: entering an active mode should
+        // clean immediately, then keep to its schedule.
+        if isWatching, mode != .manual, volumes[index].isEnabled, !volumes[index].isEjected {
+            VolumeWatcher.shared.cleanNow(mountPath: mountPath)
+        }
     }
 
     func setVolumeCleanupInterval(mountPath: String, minutes: Int) {

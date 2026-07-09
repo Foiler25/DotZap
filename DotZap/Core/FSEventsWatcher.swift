@@ -106,39 +106,53 @@ final class FSEventsWatcher {
                 maxFileSizeBytes: state.maxFileSizeBytes
             )
 
-            let events = await Task.detached(priority: .userInitiated) {
+            Task.detached(priority: .userInitiated) {
                 Self.scan(mountPath: mountPath, rules: rules, volume: volume, settings: settings)
-            }.value
-
-            if !events.isEmpty {
-                state.recordBatch(events)
-                state.flashStatusIcon()
             }
         }
     }
 
+    /// Full-volume sweep. Events are flushed to AppState in chunks as the
+    /// walk progresses — a scan of a large volume (especially over a network
+    /// mount) can run for a long time, and reporting only at the end makes
+    /// the app look idle for the whole crawl.
     private static func scan(
         mountPath: String,
         rules: [CleanRule],
         volume: Volume,
         settings: FileJanitor.DeletionSettings
-    ) -> [DeletionEvent] {
-        var events: [DeletionEvent] = []
+    ) {
+        let flushThreshold = 25
+        var pending: [DeletionEvent] = []
+
+        func flush() {
+            guard !pending.isEmpty else { return }
+            let batch = pending
+            pending.removeAll()
+            Task { @MainActor in
+                AppState.shared.recordBatch(batch)
+                if batch.contains(where: { $0.status == .deleted }) {
+                    AppState.shared.flashStatusIcon()
+                }
+            }
+        }
+
         let fm = FileManager.default
-        guard let enumerator = fm.enumerator(atPath: mountPath) else { return events }
+        guard let enumerator = fm.enumerator(atPath: mountPath) else { return }
 
         while let relPath = enumerator.nextObject() as? String {
             let fullPath = (mountPath as NSString).appendingPathComponent(relPath)
             if let rule = RuleEngine.evaluate(path: fullPath, rules: rules),
                let event = FileJanitor.delete(path: fullPath, rule: rule,
                                               volume: volume, settings: settings) {
-                events.append(event)
+                pending.append(event)
                 if event.status == .deleted {
                     enumerator.skipDescendants()
                 }
+                if pending.count >= flushThreshold { flush() }
             }
         }
-        return events
+        flush()
     }
 
     // MARK: - Callback
