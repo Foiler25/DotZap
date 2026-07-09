@@ -2,8 +2,15 @@
 set -euo pipefail
 
 # build-dmg.sh — build DotZap.app (Release, ad-hoc signed) and package as a .dmg
-# Usage: ./build-dmg.sh [version]
-#   version: optional; defaults to MARKETING_VERSION from the Xcode project.
+# Usage: ./build-dmg.sh [version] [--local-build]
+#   version:       optional; defaults to MARKETING_VERSION from the Xcode project.
+#   --local-build: put derived data in a local-disk temp dir instead of the
+#                  in-repo `build/` directory. Use when the repo lives on a
+#                  network/USB volume (e.g. the SMB share this repo sits on) —
+#                  building derived data in-repo pushes every intermediate
+#                  object across the mount and a clean Release build takes
+#                  hours instead of minutes. Either way the build dir is
+#                  removed by the cleanup trap on exit.
 
 PROJECT="DotZap.xcodeproj"
 SCHEME="DotZap"
@@ -19,9 +26,24 @@ if ! command -v create-dmg >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ "${1-}" != "" ]]; then
-  VERSION="$1"
-else
+VERSION=""
+LOCAL_BUILD=false
+for arg in "$@"; do
+  case "$arg" in
+    --local-build)
+      LOCAL_BUILD=true
+      ;;
+    -*)
+      echo "usage: $0 [version] [--local-build]" >&2
+      exit 1
+      ;;
+    *)
+      VERSION="$arg"
+      ;;
+  esac
+done
+
+if [[ -z "$VERSION" ]]; then
   VERSION="$(awk -F'= ' '/MARKETING_VERSION/ {gsub(/[; ]/, "", $2); print $2; exit}' "$PROJECT/project.pbxproj")"
 fi
 
@@ -31,7 +53,21 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 DMG_NAME="DotZap-${VERSION}.dmg"
-BUILD_DIR="build"
+if [[ "$LOCAL_BUILD" == true ]]; then
+  # Local-disk derived data; removed by the cleanup trap like the
+  # in-repo default.
+  BUILD_DIR="$(mktemp -d -t dotzap-derived-data)"
+  echo "==> Local build dir: $BUILD_DIR"
+  # hdiutil can't reliably create disk images directly on network
+  # mounts (create-dmg dies with `hdiutil: create failed - error
+  # -5344` on SMB shares), so build the DMG in a local temp dir and
+  # move the finished file to the repo root afterwards.
+  DMG_OUT_DIR="$(mktemp -d -t dotzap-dmg-out)"
+else
+  BUILD_DIR="build"
+  DMG_OUT_DIR="$REPO_ROOT"
+fi
+DMG_OUT="$DMG_OUT_DIR/$DMG_NAME"
 APP_PATH="$BUILD_DIR/Build/Products/Release/$APP_NAME"
 STAGE_DIR="$(mktemp -d -t dotzap-dmg-stage)"
 
@@ -46,6 +82,11 @@ STAGE_DIR="$(mktemp -d -t dotzap-dmg-stage)"
 #      exists on disk are unregistered.
 cleanup() {
   rm -rf "$STAGE_DIR" || true
+  # Local DMG output dir (only when --local-build; empty on success
+  # because the DMG has been moved to the repo root by then).
+  if [[ -n "${DMG_OUT_DIR-}" && "$DMG_OUT_DIR" != "$REPO_ROOT" && -d "$DMG_OUT_DIR" ]]; then
+    rm -rf "$DMG_OUT_DIR" || true
+  fi
   if [[ -n "${APP_PATH-}" && -d "$APP_PATH" ]]; then
     "$LSREG" -u "$APP_PATH" >/dev/null 2>&1 || true
   fi
@@ -121,8 +162,13 @@ create-dmg \
   --icon "$APP_NAME" 125 120 \
   --app-drop-link 375 120 \
   --hide-extension "$APP_NAME" \
-  "$DMG_NAME" \
+  "$DMG_OUT" \
   "$STAGE_DIR/"
+
+if [[ "$DMG_OUT" != "$REPO_ROOT/$DMG_NAME" ]]; then
+  echo "==> Moving DMG to repo root"
+  mv "$DMG_OUT" "$REPO_ROOT/$DMG_NAME"
+fi
 
 SHA="$(shasum -a 256 "$DMG_NAME" | awk '{print $1}')"
 

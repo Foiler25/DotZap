@@ -284,9 +284,28 @@ final class AppState: ObservableObject {
         volumes[index].isEnabled = enabled
         persistVolumes()
         if enabled {
-            VolumeWatcher.shared.startWatching(mountPath: mountPath)
+            VolumeWatcher.shared.startMonitoring(mountPath: mountPath)
         } else {
-            VolumeWatcher.shared.stopWatching(mountPath: mountPath)
+            VolumeWatcher.shared.stopMonitoring(mountPath: mountPath)
+        }
+    }
+
+    func setVolumeCleanupMode(mountPath: String, mode: Volume.CleanupMode) {
+        guard let index = volumes.firstIndex(where: { $0.mountPath == mountPath }),
+              volumes[index].cleanupMode != mode else { return }
+        volumes[index].cleanupMode = mode
+        persistVolumes()
+        VolumeWatcher.shared.restartMonitoring(mountPath: mountPath)
+    }
+
+    func setVolumeCleanupInterval(mountPath: String, minutes: Int) {
+        let clamped = max(1, minutes)
+        guard let index = volumes.firstIndex(where: { $0.mountPath == mountPath }),
+              volumes[index].cleanupIntervalMinutes != clamped else { return }
+        volumes[index].cleanupIntervalMinutes = clamped
+        persistVolumes()
+        if volumes[index].cleanupMode == .interval {
+            VolumeWatcher.shared.restartMonitoring(mountPath: mountPath)
         }
     }
 

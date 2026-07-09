@@ -41,7 +41,7 @@ DotZap needs Full Disk Access to read every mounted volume.
 | **Right-click** (or ⌃-click) | Open / close the floating settings panel |
 | Click outside the panel | Close it |
 | Toggle a volume | Stop/start watching just that drive |
-| Tap a volume row | Expand stats, whitelist editor, and Clean Now |
+| Tap a volume row | Expand stats, cleanup mode, whitelist editor, and Clean Now |
 | Add a custom rule | **Rules** tab → **Add Rule** → name, pattern, match type |
 | Clear activity log | **Activity** tab → **Clear** (resets lifetime stats too) |
 
@@ -49,6 +49,23 @@ DotZap needs Full Disk Access to read every mounted volume.
 
 Apple Double (`._*`), `.DS_Store`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`,
 `.TemporaryItems`, `__MACOSX`, `Thumbs.db`, `desktop.ini`. All toggleable; none deletable.
+
+### Cleanup modes
+
+Every volume has a per-drive cleanup mode (expanded volume row → **Cleanup mode**):
+
+- **Live** — FSEvents watching; junk is deleted the moment it appears (default for
+  local drives).
+- **Interval** — a full-volume scan on a schedule (5 min – 6 h; default for network
+  volumes).
+- **Manual** — nothing runs until you press **Clean Now**.
+
+### Network volumes
+
+SMB/NFS/AFP mounts show up in the Volumes tab with a **Network** badge, but are
+**disabled by default** — flip the volume's toggle to opt in. They default to
+Interval mode because FSEvents on a network share only sees changes made from
+this Mac; remote writers are invisible to Live mode.
 
 ### Whitelist
 
@@ -63,8 +80,8 @@ will *never* delete on that volume — useful if a creative app stores files mat
   relaunch.
 - **Files aren't being deleted.** Make sure Full Disk Access is granted (see above) and
   that the global toggle is on (left-click the icon — sparkle icon should be bright, not
-  dimmed). For network volumes, FSEvents fires only after the user explicitly enables
-  the volume.
+  dimmed). Network volumes are disabled by default — enable them per-volume, and prefer
+  Interval mode there (Live mode can't see changes made by other machines).
 - **Login at Login doesn't appear in System Settings.** macOS may take a few seconds to
   register the new app via `SMAppService`. Open
   `System Settings → General → Login Items & Extensions` and look for DotZap under
@@ -79,7 +96,7 @@ DotZap/
 ├── DotZapApp.swift           @main + NSApplicationDelegate (.accessory policy)
 ├── AppState.swift            @MainActor singleton, all state + persistence
 ├── Core/
-│   ├── VolumeWatcher.swift   DiskArbitration mount/unmount handling
+│   ├── VolumeWatcher.swift   DiskArbitration + NSWorkspace mount handling, per-mode monitoring
 │   ├── FSEventsWatcher.swift Per-volume FSEventStream + cleanNow scan
 │   ├── FileJanitor.swift     Whitelist-aware deletion
 │   └── RuleEngine.swift      exact / prefix / glob matching
@@ -112,7 +129,10 @@ Each release: bump version → build DMG → write notes → publish.
 #    Use semver (e.g. 1.0.0 → 1.0.1).
 
 # 2. Build the signed DMG. Writes .release-metadata as the handoff file.
-./build-dmg.sh
+#    Pass --local-build when the repo lives on a network/USB mount: derived
+#    data and the DMG are built on local disk (fast), then the DMG is moved
+#    to the repo root and the temp dirs are cleaned up.
+./build-dmg.sh --local-build
 
 # 3. Smoke-test the DMG (drag-install, launch, About tab shows new version).
 

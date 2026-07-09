@@ -23,7 +23,16 @@ final class VolumeWatcher {
     static let shared = VolumeWatcher()
 
     private var session: DASession?
-    private var watchers: [String: FSEventsWatcher] = [:]
+    private var watchers: [String: FSEventsWatcher] = [:]      // .realtime volumes
+    private var intervalTimers: [String: Timer] = [:]          // .interval volumes
+    private var mountObservers: [NSObjectProtocol] = []
+
+    /// Mount paths already processed since their most recent mount. Both
+    /// DiskArbitration and NSWorkspace can report the same mount (and the
+    /// startup mount-table scan overlaps DA's registration replay); this set
+    /// makes registration — and especially the initial cleanup scan — fire
+    /// once per mount instead of once per source.
+    private var activeMounts: Set<String> = []
 
     private init() {}
 
@@ -54,6 +63,12 @@ final class VolumeWatcher {
         for (_, watcher) in watchers {
             watcher.stop()
         }
+        for (_, timer) in intervalTimers {
+            timer.invalidate()
+        }
+        for observer in mountObservers {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        }
     }
 
     // MARK: - Lifecycle
@@ -72,22 +87,83 @@ final class VolumeWatcher {
         let context = Unmanaged.passUnretained(self).toOpaque()
         DARegisterDiskAppearedCallback(newSession, nil, Self.appearedCallback, context)
         DARegisterDiskDisappearedCallback(newSession, nil, Self.disappearedCallback, context)
+
+        installMountObservers()
+        scanExistingMounts()
+    }
+
+    /// DiskArbitration doesn't reliably deliver appeared/disappeared callbacks
+    /// for network filesystems (SMB/NFS/AFP mounts have no backing DADisk on
+    /// some macOS versions). NSWorkspace's mount notifications cover exactly
+    /// that gap; `activeMounts` dedups volumes both sources report.
+    private func installMountObservers() {
+        let center = NSWorkspace.shared.notificationCenter
+        let mounted = center.addObserver(
+            forName: NSWorkspace.didMountNotification, object: nil, queue: .main
+        ) { note in
+            guard let url = note.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
+            Task { @MainActor in
+                VolumeWatcher.shared.registerMount(at: url)
+            }
+        }
+        let unmounted = center.addObserver(
+            forName: NSWorkspace.didUnmountNotification, object: nil, queue: .main
+        ) { note in
+            guard let url = note.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
+            Task { @MainActor in
+                VolumeWatcher.shared.unregisterMount(path: url.path)
+            }
+        }
+        mountObservers = [mounted, unmounted]
+    }
+
+    /// Walk the mount table once at startup. DA replays "appeared" for local
+    /// disks when callbacks register, but network volumes mounted before
+    /// launch would otherwise never show up.
+    private func scanExistingMounts() {
+        let keys: [URLResourceKey] = [.volumeNameKey, .volumeIsLocalKey, .volumeIsReadOnlyKey]
+        guard let urls = FileManager.default.mountedVolumeURLs(
+            includingResourceValuesForKeys: keys,
+            options: [.skipHiddenVolumes]
+        ) else { return }
+        for url in urls {
+            registerMount(at: url)
+        }
     }
 
     // MARK: - Public control
 
-    func startWatching(mountPath: String) {
+    /// Start whatever monitoring the volume's cleanup mode calls for:
+    /// an FSEvents stream (`.realtime`), a repeating scan timer
+    /// (`.interval`), or nothing (`.manual`).
+    func startMonitoring(mountPath: String) {
         guard AppState.shared.isWatching else { return }
-        guard watchers[mountPath] == nil else { return }
-        let watcher = FSEventsWatcher(mountPath: mountPath)
-        watcher.start()
-        watchers[mountPath] = watcher
+        guard let volume = AppState.shared.volumes.first(where: { $0.mountPath == mountPath }),
+              volume.isEnabled, !volume.isEjected else { return }
+
+        switch volume.cleanupMode {
+        case .realtime:
+            guard watchers[mountPath] == nil else { return }
+            let watcher = FSEventsWatcher(mountPath: mountPath)
+            watcher.start()
+            watchers[mountPath] = watcher
+        case .interval:
+            guard intervalTimers[mountPath] == nil else { return }
+            scheduleIntervalTimer(mountPath: mountPath, minutes: volume.cleanupIntervalMinutes)
+        case .manual:
+            break
+        }
     }
 
-    func stopWatching(mountPath: String) {
-        guard let watcher = watchers[mountPath] else { return }
-        watcher.stop()
-        watchers.removeValue(forKey: mountPath)
+    func stopMonitoring(mountPath: String) {
+        watchers.removeValue(forKey: mountPath)?.stop()
+        intervalTimers.removeValue(forKey: mountPath)?.invalidate()
+    }
+
+    /// Re-derive monitoring after a cleanup-mode or interval change.
+    func restartMonitoring(mountPath: String) {
+        stopMonitoring(mountPath: mountPath)
+        startMonitoring(mountPath: mountPath)
     }
 
     func pauseAll() {
@@ -95,14 +171,16 @@ final class VolumeWatcher {
             watcher.stop()
         }
         watchers.removeAll()
+        for (_, timer) in intervalTimers {
+            timer.invalidate()
+        }
+        intervalTimers.removeAll()
     }
 
     func resumeAll() {
         for volume in AppState.shared.volumes
-        where volume.isEnabled && !volume.isEjected && watchers[volume.mountPath] == nil {
-            let watcher = FSEventsWatcher(mountPath: volume.mountPath)
-            watcher.start()
-            watchers[volume.mountPath] = watcher
+        where volume.isEnabled && !volume.isEjected {
+            startMonitoring(mountPath: volume.mountPath)
         }
     }
 
@@ -114,6 +192,19 @@ final class VolumeWatcher {
             let oneShot = FSEventsWatcher(mountPath: mountPath)
             oneShot.cleanNow()
         }
+    }
+
+    private func scheduleIntervalTimer(mountPath: String, minutes: Int) {
+        let seconds = TimeInterval(max(1, minutes)) * 60
+        let timer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: true) { _ in
+            Task { @MainActor in
+                VolumeWatcher.shared.cleanNow(mountPath: mountPath)
+            }
+        }
+        // Scans are whole-volume sweeps; exact firing time doesn't matter.
+        // Tolerance lets the system coalesce wakeups.
+        timer.tolerance = seconds * 0.1
+        intervalTimers[mountPath] = timer
     }
 
     // MARK: - Callback handling
@@ -137,34 +228,63 @@ final class VolumeWatcher {
 
     private func handleAppeared(disk: DADisk) {
         guard let info = describe(disk: disk) else { return }
-        guard !shouldSkip(info: info) else { return }
-
-        let volume = Volume(
-            mountPath: info.mountPath,
-            name: info.name,
-            filesystem: info.filesystem,
-            isEnabled: existingEnabledState(for: info.mountPath) ?? true,
-            isEjected: false,
-            isNetwork: info.isNetwork,
-            whitelist: existingWhitelist(for: info.mountPath) ?? []
-        )
-        AppState.shared.upsertVolume(volume)
-
-        if AppState.shared.isWatching, volume.isEnabled {
-            startWatching(mountPath: volume.mountPath)
-            // Kick off an initial one-shot scan. FSEventStreamCreate doesn't do
-            // any I/O, so without this the TCC "Removable Volumes" prompt only
-            // fires on the user's first manual action. Scanning here triggers
-            // the prompt at app launch / drive mount and also cleans any junk
-            // that accumulated while the volume was untracked.
-            cleanNow(mountPath: volume.mountPath)
-        }
+        register(info: info)
     }
 
     private func handleDisappeared(disk: DADisk) {
         guard let info = describe(disk: disk) else { return }
-        stopWatching(mountPath: info.mountPath)
-        AppState.shared.markVolumeEjected(mountPath: info.mountPath)
+        unregisterMount(path: info.mountPath)
+    }
+
+    private func registerMount(at url: URL) {
+        guard let info = describe(volumeURL: url) else { return }
+        register(info: info)
+    }
+
+    private func unregisterMount(path: String) {
+        activeMounts.remove(path)
+        stopMonitoring(mountPath: path)
+        AppState.shared.markVolumeEjected(mountPath: path)
+    }
+
+    /// Single funnel for both discovery sources (DiskArbitration +
+    /// NSWorkspace/mount-table).
+    private func register(info: DiskInfo) {
+        guard !shouldSkip(info: info) else { return }
+        guard !activeMounts.contains(info.mountPath) else { return }
+        activeMounts.insert(info.mountPath)
+
+        let existing = AppState.shared.volumes.first { $0.mountPath == info.mountPath }
+        let volume = Volume(
+            mountPath: info.mountPath,
+            name: info.name,
+            filesystem: info.filesystem,
+            // Network volumes are opt-in: never auto-enable one the user
+            // hasn't explicitly turned on.
+            isEnabled: existing?.isEnabled ?? !info.isNetwork,
+            isEjected: false,
+            isNetwork: info.isNetwork,
+            whitelist: existing?.whitelist ?? [],
+            // FSEvents can't see remote writers on a network share, so
+            // interval scanning is the honest default there.
+            cleanupMode: existing?.cleanupMode ?? (info.isNetwork ? .interval : .realtime),
+            cleanupIntervalMinutes: existing?.cleanupIntervalMinutes
+                ?? Volume.defaultCleanupIntervalMinutes
+        )
+        AppState.shared.upsertVolume(volume)
+
+        if AppState.shared.isWatching, volume.isEnabled {
+            startMonitoring(mountPath: volume.mountPath)
+            // Kick off an initial one-shot scan. FSEventStreamCreate doesn't do
+            // any I/O, so without this the TCC "Removable Volumes" prompt only
+            // fires on the user's first manual action. Scanning here triggers
+            // the prompt at app launch / drive mount and also cleans any junk
+            // that accumulated while the volume was untracked. Manual-mode
+            // volumes are exempt — nothing runs until the user asks.
+            if volume.cleanupMode != .manual {
+                cleanNow(mountPath: volume.mountPath)
+            }
+        }
     }
 
     // MARK: - Description parsing
@@ -202,25 +322,38 @@ final class VolumeWatcher {
         )
     }
 
+    /// DiskInfo from a bare volume URL (NSWorkspace notifications and the
+    /// startup mount-table scan have no DADisk to describe).
+    private func describe(volumeURL url: URL) -> DiskInfo? {
+        let mountPath = url.path
+        guard !mountPath.isEmpty else { return nil }
+
+        let keys: Set<URLResourceKey> = [.volumeNameKey, .volumeIsLocalKey, .volumeIsReadOnlyKey]
+        guard let values = try? url.resourceValues(forKeys: keys) else { return nil }
+
+        var fs = statfs()
+        let filesystem: String = statfs(mountPath, &fs) == 0
+            ? withUnsafeBytes(of: fs.f_fstypename) { raw in
+                String(decoding: raw.prefix(while: { $0 != 0 }), as: UTF8.self)
+            }
+            : "Unknown"
+
+        let fallbackName = url.lastPathComponent.isEmpty ? "Volume" : url.lastPathComponent
+        return DiskInfo(
+            mountPath: mountPath,
+            name: values.volumeName ?? fallbackName,
+            filesystem: filesystem.uppercased(),
+            isWritable: !(values.volumeIsReadOnly ?? false),
+            isNetwork: !(values.volumeIsLocal ?? true)
+        )
+    }
+
     private func shouldSkip(info: DiskInfo) -> Bool {
         let path = info.mountPath
         if path == "/" { return true }
         if path.contains("/System/") { return true }
         if path.hasPrefix("/private/") { return true }
         if !info.isWritable { return true }
-        if info.isNetwork {
-            // Only watch network volumes the user has previously enabled.
-            let known = AppState.shared.volumes.contains { $0.mountPath == path }
-            if !known { return true }
-        }
         return false
-    }
-
-    private func existingEnabledState(for mountPath: String) -> Bool? {
-        AppState.shared.volumes.first { $0.mountPath == mountPath }?.isEnabled
-    }
-
-    private func existingWhitelist(for mountPath: String) -> [String]? {
-        AppState.shared.volumes.first { $0.mountPath == mountPath }?.whitelist
     }
 }

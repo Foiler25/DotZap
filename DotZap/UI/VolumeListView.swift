@@ -39,7 +39,7 @@ private enum DriveIconCache {
 struct VolumeListView: View {
     @ObservedObject private var state = AppState.shared
 
-    private var watchingCount: Int {
+    private var activeCount: Int {
         state.volumes.filter { $0.isEnabled && !$0.isEjected }.count
     }
 
@@ -51,7 +51,7 @@ struct VolumeListView: View {
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                 Spacer()
-                Text(watchingCount == 1 ? "1 watching" : "\(watchingCount) watching")
+                Text(activeCount == 1 ? "1 active" : "\(activeCount) active")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
@@ -141,6 +141,16 @@ private struct VolumeRow: View {
                     Text(volume.name)
                         .font(.system(size: 13, weight: .medium))
                         .lineLimit(1)
+                    if volume.isNetwork {
+                        Text("Network")
+                            .font(.system(size: 9, weight: .semibold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(
+                                Capsule().fill(Color.blue.opacity(0.22))
+                            )
+                            .foregroundStyle(.secondary)
+                    }
                     if volume.isEjected {
                         Text("Ejected")
                             .font(.system(size: 9, weight: .semibold))
@@ -215,6 +225,8 @@ private struct VolumeRow: View {
                 .labelsHidden()
             }
 
+            cleanupModeSection
+
             VStack(alignment: .leading, spacing: 4) {
                 Text("Whitelist (glob patterns)")
                     .font(.system(size: 10, weight: .semibold))
@@ -269,6 +281,79 @@ private struct VolumeRow: View {
         }
         .padding(.horizontal, 10)
         .padding(.bottom, 10)
+    }
+
+    private var cleanupModeSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Cleanup mode")
+                    .font(.system(size: 11))
+                Text(cleanupModeCaption)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Picker("", selection: Binding(
+                get: { volume.cleanupMode },
+                set: { state.setVolumeCleanupMode(mountPath: volume.mountPath, mode: $0) }
+            )) {
+                ForEach(Volume.CleanupMode.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .controlSize(.small)
+            .labelsHidden()
+
+            if volume.cleanupMode == .interval {
+                HStack {
+                    Text("Scan every")
+                        .font(.system(size: 11))
+                    Spacer()
+                    Picker("", selection: Binding(
+                        get: { volume.cleanupIntervalMinutes },
+                        set: { state.setVolumeCleanupInterval(mountPath: volume.mountPath, minutes: $0) }
+                    )) {
+                        ForEach(intervalOptions, id: \.self) { minutes in
+                            Text(Self.intervalLabel(minutes)).tag(minutes)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .controlSize(.small)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
+        }
+    }
+
+    private var cleanupModeCaption: String {
+        switch volume.cleanupMode {
+        case .realtime:
+            return volume.isNetwork
+                ? "Deletes junk the moment it appears. On network volumes only changes made from this Mac are seen — prefer Interval."
+                : "Deletes junk the moment it appears."
+        case .interval:
+            return "Scans the whole volume on a schedule."
+        case .manual:
+            return "Only cleans when you press Clean Now."
+        }
+    }
+
+    /// Preset choices, with the volume's current value spliced in so the menu
+    /// never shows an empty selection (e.g. after a future preset change).
+    private var intervalOptions: [Int] {
+        let presets = [5, 15, 30, 60, 120, 360]
+        return presets.contains(volume.cleanupIntervalMinutes)
+            ? presets
+            : (presets + [volume.cleanupIntervalMinutes]).sorted()
+    }
+
+    private static func intervalLabel(_ minutes: Int) -> String {
+        if minutes % 60 == 0 {
+            let hours = minutes / 60
+            return hours == 1 ? "1 hour" : "\(hours) hours"
+        }
+        return "\(minutes) min"
     }
 
     @ViewBuilder
