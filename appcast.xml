@@ -363,5 +363,38 @@ A safety release focused on hardening how DotZap decides what to delete, plus a 
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.2.6/DotZap-1.2.6.dmg" sparkle:edSignature="0yKb/BK4b6FgQBRpUkKlLDJZLXBT5FDzDuBxOkfr+/9LlcdA7mxREJHOmcIJEUbZILbbiv7s+DHT7OCTaE7MCw==" length="1832621" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.3.0</title>
+      <pubDate>Thu, 09 Jul 2026 17:39:34 +0000</pubDate>
+      <sparkle:version>1.3.0</sparkle:version>
+      <sparkle:shortVersionString>1.3.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+## New
+
+- **Network drives.** SMB, NFS, and AFP shares now show up in the Volumes tab with a **Network** badge. They're off by default — flip a volume's toggle to opt in. DotZap also detects network shares that were already mounted before it launched.
+- **Cleanup modes.** Every drive now has a per-volume cleanup mode in the expanded volume row:
+  - **Live** — deletes junk the instant it appears (the existing behavior; still the default for local drives).
+  - **Interval** — runs a full-volume scan on a schedule you pick, from 5 minutes to 6 hours.
+  - **Manual** — nothing runs until you press *Clean Now*.
+
+  Network volumes default to Interval, because live watching on a network share can only see changes made from your own Mac — files dropped by other machines are invisible to it. The mode picker explains this if you switch a network volume to Live.
+
+## Fixed
+
+- Network volumes could never be enabled: DotZap skipped unknown network shares before they ever reached the volume list, so the "enable it manually" path didn't exist. They now appear in the list, disabled, ready to opt in.
+
+## Changed
+
+- Volumes set to Manual mode are no longer scanned automatically when they mount — nothing touches them until you ask.
+- The Volumes tab header now reads "N active" instead of "N watching," since a drive can be active without being live-watched.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.3.0.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.3.0/DotZap-1.3.0.dmg" sparkle:edSignature="Z0RLOGYF4LWXiVFTBN5sYfvNyKMkwgXoWHbPVpYJuLeMRN+wUVqhP3jPO0dBOU/6mtipaSdfCALzD5ldzQNbDg==" length="1893079" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
