@@ -423,5 +423,28 @@ A safety release focused on hardening how DotZap decides what to delete, plus a 
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.3.1/DotZap-1.3.1.dmg" sparkle:edSignature="LGiTPjlXTTEdsvZPfX/BAQHqkzP+9I5DyAUyngsp2BwFSqgfhjBQxo9FN6jN44Ob/aOP/JajHY76d6nYf94sBw==" length="1911826" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.3.2</title>
+      <pubDate>Thu, 09 Jul 2026 18:43:48 +0000</pubDate>
+      <sparkle:version>1.3.2</sparkle:version>
+      <sparkle:shortVersionString>1.3.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+## Fixed
+
+- **No more phantom volumes.** The mount detection added in 1.3.0 was registering things that should never be cleaned: macOS system volumes (Recovery and friends) and read-only disk images — including DotZap's own installer DMG. Both are now filtered out: hidden system volumes are ignored, and read-only is checked on the actual mounted filesystem instead of the underlying device.
+- Leftover `dmg.*` staging entries created by 1.3.0/1.3.1 builds are cleaned from the volume list automatically on launch.
+
+## New
+
+- **Remove button for ejected volumes.** Expand any ejected volume row to remove it from the list immediately — along with its whitelist, stats, and cleanup settings — instead of waiting for the 7-day auto-prune. If the volume mounts again later it reappears with default settings.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.3.2.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.3.2/DotZap-1.3.2.dmg" sparkle:edSignature="uFdiwuwd1f+X7tSE7vGgcvAk74VyWJA97JELX6pdNUbln0WFp6k/hv6n2CRGEYy8EA9GnIhKEzizy6MXvDVQDg==" length="1924444" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
