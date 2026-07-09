@@ -396,5 +396,32 @@ A safety release focused on hardening how DotZap decides what to delete, plus a 
       ]]></description>
       <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.3.0/DotZap-1.3.0.dmg" sparkle:edSignature="Z0RLOGYF4LWXiVFTBN5sYfvNyKMkwgXoWHbPVpYJuLeMRN+wUVqhP3jPO0dBOU/6mtipaSdfCALzD5ldzQNbDg==" length="1893079" type="application/octet-stream" />
     </item>
+      <item>
+      <title>DotZap 1.3.1</title>
+      <pubDate>Thu, 09 Jul 2026 18:27:58 +0000</pubDate>
+      <sparkle:version>1.3.1</sparkle:version>
+      <sparkle:shortVersionString>1.3.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+## Fixed
+
+- **Enabling a network drive now actually does something.** Turning a volume on (or switching it to Live or Interval mode) kicks off a scan immediately. Previously it only armed the schedule — with a 6-hour interval, that meant up to 6 hours of nothing.
+- **Deletions on network shares work now.** With *Move to Trash* enabled, deletions on network volumes silently failed because those volumes have no trash folder. DotZap now deletes immediately on volumes without a trash — the same thing Finder does. (Local drives with a trash are unaffected; files still go to the Trash there.)
+- Added the network-volumes permission prompt, so DotZap can ask for access to network shares even without Full Disk Access.
+- DotZap no longer interferes with DMG-packaging tools: `create-dmg` staging volumes (`/Volumes/dmg.*`) are ignored. Previously DotZap would delete the `.DS_Store` layout file the tool waits for, hanging the packaging run.
+- **Progress spinners no longer vanish when you close the panel.** Strips and scans kept running in the background, but reopening the panel showed no sign of them. The volume row now shows a spinner (even collapsed) while a scan or attribute strip is in flight, and *Clean Now* shows "Scanning…" until the scan finishes.
+
+## Changed
+
+- Long scans now report results as they go: deletions appear in the Activity log in batches while the scan is still running, instead of all at once at the end. Useful on large network shares where a full crawl can take a while.
+- Only one scan runs per volume at a time — a scheduled scan won't pile onto one that's still crawling a slow share.
+
+## Install & update
+
+- **Already installed?** DotZap auto-updates — pick *Check for Updates…* in the About tab to grab it now, or wait for the next scheduled check.
+- **First time?** Download `DotZap-1.3.1.dmg`, open it, drag DotZap to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway. Then grant Full Disk Access via the banner in the Volumes tab.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/DotZap/releases/download/v1.3.1/DotZap-1.3.1.dmg" sparkle:edSignature="LGiTPjlXTTEdsvZPfX/BAQHqkzP+9I5DyAUyngsp2BwFSqgfhjBQxo9FN6jN44Ob/aOP/JajHY76d6nYf94sBw==" length="1911826" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
